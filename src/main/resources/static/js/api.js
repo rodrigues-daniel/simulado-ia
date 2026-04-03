@@ -69,3 +69,14 @@ async function loadContestsIntoSelect(selectId) {
         console.error('Erro ao carregar concursos:', e);
     }
 }
+
+// ── Utilitários ──────────────────────────────────────────────────────
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g,  '&amp;')
+        .replace(/</g,  '&lt;')
+        .replace(/>/g,  '&gt;')
+        .replace(/"/g,  '&quot;')
+        .replace(/'/g,  '&#39;');
+}

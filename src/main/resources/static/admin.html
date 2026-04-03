@@ -48,6 +48,9 @@
             <button class="tab" onclick="switchTab('topics-view')">
                 📊 Visão de Tópicos
             </button>
+            <button class="tab" onclick="switchTab('ia-questions')">
+                🤖 Gestão IA
+            </button>
         </div>
 
         <!-- Tab: Concursos -->
@@ -238,6 +241,102 @@
                 <p style="color:var(--text-muted)">Selecione um concurso para visualizar.</p>
             </div>
         </section>
+
+        <!-- Tab: Gestão de Questões IA -->
+        <section id="tab-ia-questions" class="tab-content section-card" style="display:none">
+            <h2>🤖 Gestão de Questões Geradas por IA</h2>
+
+            <!-- Stats -->
+            <div id="iaStatsGrid" class="ia-stats-grid" style="margin:16px 0">
+                <div class="ia-stat-card">
+                    <span class="ia-stat-value" id="iaTotalQ">--</span>
+                    <span class="ia-stat-label">Total Geradas</span>
+                </div>
+                <div class="ia-stat-card pending">
+                    <span class="ia-stat-value" id="iaPendingQ">--</span>
+                    <span class="ia-stat-label">Pendentes Revisão</span>
+                </div>
+                <div class="ia-stat-card approved">
+                    <span class="ia-stat-value" id="iaApprovedQ">--</span>
+                    <span class="ia-stat-label">Aprovadas</span>
+                </div>
+                <div class="ia-stat-card rejected">
+                    <span class="ia-stat-value" id="iaRejectedQ">--</span>
+                    <span class="ia-stat-label">Rejeitadas</span>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="filter-row" style="margin-bottom:16px">
+                <div class="form-group">
+                    <label>Visualizar</label>
+                    <select id="iaFilter" onchange="loadIAQuestions()">
+                        <option value="pending">⏳ Pendentes de Revisão</option>
+                        <option value="approved">✅ Aprovadas</option>
+                        <option value="rejected">❌ Rejeitadas</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Por Tópico</label>
+                    <select id="iaTopicFilter" onchange="loadIAQuestionsByTopic()">
+                        <option value="">Todos os tópicos</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content:flex-end">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary btn-sm" onclick="approveAllPending()">
+                        ✅ Aprovar Todas Pendentes
+                    </button>
+                </div>
+            </div>
+
+            <div id="iaQuestionsList" class="ia-questions-list">
+                <p style="color:var(--text-muted)">Clique em um filtro para carregar as questões.</p>
+            </div>
+
+            <!-- ── Análise de Qualidade RAG ── -->
+            <div style="border-top:2px solid var(--border);margin-top:32px;padding-top:24px">
+                <h2 style="margin-bottom:16px">📊 Análise de Qualidade do Banco Vetorial (RAG)</h2>
+
+                <div class="filter-row" style="margin-bottom:16px">
+                    <div class="form-group">
+                        <label>Concurso</label>
+                        <select id="ragQualityContest" onchange="loadRagQualityReport()">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="justify-content:flex-end">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-secondary btn-sm" onclick="loadRagQualityReport()">
+                            🔄 Analisar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resumo global -->
+                <div id="ragGlobalSummary" style="display:none">
+                    <div class="rag-quality-summary" id="ragQualityCards"></div>
+                    <div class="rag-orientations-box" id="ragGlobalOrientations"></div>
+                </div>
+
+                <!-- Por tópico -->
+                <div id="ragTopicReports"></div>
+            </div>
+        </section>
+
+        <!-- Modal de revisão de questão IA -->
+        <div id="iaReviewModal" class="modal-overlay" onclick="closeIAModalOutside(event)">
+            <div class="modal-box" style="max-width:680px">
+                <div class="modal-header" style="background:#5b21b6">
+                    <div>
+                        <h3>🤖 Revisar Questão Gerada por IA</h3>
+                        <div id="iaModalMeta" style="font-size:12px;opacity:.8;margin-top:2px"></div>
+                    </div>
+                    <button class="modal-close" onclick="closeIAModal()">✕</button>
+                </div>
+                <div class="modal-body" id="iaModalBody"></div>
+            </div>
+        </div>
     </main>
 
     <!-- Modal de questões por tópico -->

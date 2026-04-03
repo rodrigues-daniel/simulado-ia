@@ -1,5 +1,6 @@
 package br.cebraspe.simulado.domain.question;
 
+import br.cebraspe.simulado.ai.ProfessorExplanationService;
 import br.cebraspe.simulado.ai.QuestionGeneratorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,13 +10,19 @@ import java.util.List;
 @RequestMapping("/api/questions")
 public class QuestionController {
 
-    private final QuestionService questionService;
-    private final QuestionGeneratorService generatorService;
+    private final QuestionService              questionService;
+    private final QuestionGeneratorService     generatorService;
+    private final QuestionRepository           questionRepository;
+    private final ProfessorExplanationService  professorExplanationService; // ← adicione
 
     public QuestionController(QuestionService questionService,
-            QuestionGeneratorService generatorService) {
-        this.questionService = questionService;
-        this.generatorService = generatorService;
+                              QuestionGeneratorService generatorService,
+                              QuestionRepository questionRepository,
+                              ProfessorExplanationService professorExplanationService) {
+        this.questionService             = questionService;
+        this.generatorService            = generatorService;
+        this.questionRepository          = questionRepository;
+        this.professorExplanationService = professorExplanationService;
     }
 
     @GetMapping("/topic/{topicId}")

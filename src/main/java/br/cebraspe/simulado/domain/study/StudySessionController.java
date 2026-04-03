@@ -1,46 +1,80 @@
 package br.cebraspe.simulado.domain.study;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/study/sessions")
+@RequestMapping("/api/study")
 public class StudySessionController {
 
-    private final JdbcClient jdbcClient;
+    private final StudySessionService    sessionService;
+    private final StudySessionRepository sessionRepository;
 
-    public StudySessionController(JdbcClient jdbcClient) {
-        this.jdbcClient = jdbcClient;
+    public StudySessionController(StudySessionService sessionService,
+                                  StudySessionRepository sessionRepository) {
+        this.sessionService    = sessionService;
+        this.sessionRepository = sessionRepository;
     }
 
-    @PostMapping
-    public ResponseEntity<Map<String, Object>> createSession(@RequestBody Map<String, Long> body) {
+    /**
+     * Cria sessão E retorna as questões do tópico.
+     * Se não houver questões no banco, gera via IA automaticamente.
+     * O frontend recebe tudo em uma única chamada.
+     */
+    @PostMapping("/sessions")
+    public ResponseEntity<SessionStartResponse> createSession(
+            @RequestBody Map<String, Long> body) {
+
         Long topicId = body.get("topicId");
-        var id = jdbcClient.sql("""
-                INSERT INTO study_sessions (topic_id, total_questions)
-                VALUES (:topicId, 0) RETURNING id
-                """)
-                .param("topicId", topicId)
-                .query(Long.class).single();
-        return ResponseEntity.ok(Map.of("id", id));
+        if (topicId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Cria a sessão
+        Long sessionId = sessionRepository.create(topicId);
+
+        // Busca ou gera questões
+        var result = sessionService.getOrGenerateQuestions(topicId);
+
+        String message = switch (result.source()) {
+            case DATABASE      -> null; // silencioso — comportamento normal
+            case AI_GENERATED  -> "Nenhuma questão encontrada no banco. " +
+                    result.questions().size() +
+                    " questões foram geradas pela IA para este tópico.";
+            case AI_EMPTY      -> "A IA não conseguiu gerar questões para este tópico. " +
+                    "Adicione questões manualmente no painel Admin.";
+            case AI_ERROR      -> "Serviço de IA indisponível e não há questões no banco. " +
+                    "Verifique se o Ollama está rodando ou adicione questões no Admin.";
+        };
+
+        return ResponseEntity.ok(new SessionStartResponse(
+                sessionId,
+                result.questions(),
+                result.source().name(),
+                message
+        ));
     }
 
-    @PatchMapping("/{id}/finish")
-    public ResponseEntity<Void> finish(@PathVariable Long id,
+    @PatchMapping("/sessions/{id}/finish")
+    public ResponseEntity<Void> finish(
+            @PathVariable Long id,
             @RequestBody Map<String, Integer> stats) {
-        jdbcClient.sql("""
-                UPDATE study_sessions
-                SET finished_at = NOW(),
-                    correct_count = :correct,
-                    wrong_count   = :wrong
-                WHERE id = :id
-                """)
-                .param("correct", stats.getOrDefault("correct", 0))
-                .param("wrong", stats.getOrDefault("wrong", 0))
-                .param("id", id)
-                .update();
+
+        sessionRepository.finish(
+                id,
+                stats.getOrDefault("correct", 0),
+                stats.getOrDefault("wrong",   0),
+                stats.getOrDefault("skipped", 0)
+        );
         return ResponseEntity.ok().build();
     }
+
+    public record SessionStartResponse(
+            Long sessionId,
+            List<?> questions,
+            String source,
+            String message       // null = banco normal, string = aviso ao usuário
+    ) {}
 }

@@ -37,15 +37,18 @@
                 <select id="contestSelect" onchange="loadTopics()">
                     <option value="">Selecione o concurso</option>
                 </select>
-                <select id="topicSelect">
+                <select id="topicSelect" onchange="onTopicSelected()">
                     <option value="">Selecione o tópico</option>
                 </select>
                 <button class="btn btn-primary" onclick="startStudy()">
                     🚀 Iniciar Estudo
                 </button>
-                <button class="btn btn-secondary" onclick="generateAIQuestions()">
-                    🤖 Gerar com IA
-                </button>
+<!--                <button class="btn btn-secondary" onclick="generateAIQuestions()">-->
+<!--                    🤖 Gerar com IA-->
+<!--                </button>-->
+                <span class="hint" style="align-self:center">
+    💡                Se não houver questões no banco, a IA gera automaticamente.
+                 </span>
             </div>
         </section>
 
@@ -132,6 +135,7 @@
 
     <script src="/js/api.js"></script>
     <script src="/js/study.js"></script>
+    <script src="/js/ia-admin.js"></script>  <!-- adicione esta linha -->
 </body>
 
 </html>

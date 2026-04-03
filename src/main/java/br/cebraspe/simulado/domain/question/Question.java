@@ -1,5 +1,7 @@
 package br.cebraspe.simulado.domain.question;
 
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,5 +19,12 @@ public record Question(
         Integer year,
         String source,
         String difficulty,
-        LocalDateTime createdAt) {
-}
+        // ── Campos IA (V7) ──────────────────────────────
+        Boolean iaReviewed,
+        Boolean iaApproved,
+        BigDecimal iaConfidence,
+        String reviewNote,
+        LocalDateTime reviewedAt,
+        // ────────────────────────────────────────────────
+        LocalDateTime createdAt
+) {}
