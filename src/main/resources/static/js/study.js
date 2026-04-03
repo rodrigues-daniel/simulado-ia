@@ -39,23 +39,39 @@ async function startStudy() {
     const topicId = document.getElementById('topicSelect').value;
     if (!topicId) { showToast('Selecione um tópico', 'error'); return; }
 
+    // Mostra indicador de carregamento no botão
+    const btn = document.querySelector('button[onclick="startStudy()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Carregando...'; }
+
     try {
-        const session = await API.post('/study/sessions', { topicId: parseInt(topicId) });
-        sessionId     = session.id;
-        questions     = await API.get(`/questions/topic/${topicId}`);
+        // Uma única chamada: cria sessão + retorna (ou gera) questões
+        const response = await API.post('/study/sessions', {
+            topicId: parseInt(topicId)
+        });
+
+        sessionId = response.sessionId;
+        questions = response.questions || [];
+
+        // Exibe aviso se as questões vieram da IA
+        if (response.message) {
+            showStudySourceBanner(response.source, response.message);
+        }
 
         if (!questions.length) {
-            showToast('Nenhuma questão encontrada. Gere com IA ou importe no Admin.', 'error');
+            showToast(
+                response.message || 'Nenhuma questão disponível para este tópico.',
+                'error'
+            );
             return;
         }
 
-        currentIndex = 0;
-        sessionStats = { correct: 0, wrong: 0, skipped: 0 };
+        currentIndex  = 0;
+        sessionStats  = { correct: 0, wrong: 0, skipped: 0 };
         prefetchQueue = questions.map(q => ({
-            question:             q,
+            question:              q,
             prefetchedExplanation: null,
-            prefetchDone:         false,
-            prefetchError:        false
+            prefetchDone:          false,
+            prefetchError:         false
         }));
 
         show('questionArea');
@@ -65,13 +81,54 @@ async function startStudy() {
         hide('processingBox');
 
         renderQuestion();
-        schedulePrefetch(); // inicia pré-carregamento em background
+        schedulePrefetch();
 
     } catch (e) {
-        showToast('Erro ao iniciar estudo', 'error');
-        console.error(e);
+        console.error('[startStudy] erro:', e);
+        showToast('Erro ao iniciar estudo. Verifique o servidor.', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Iniciar Estudo'; }
     }
 }
+
+
+// Banner informativo sobre a origem das questões
+function showStudySourceBanner(source, message) {
+    // Remove banner anterior se existir
+    const existing = document.getElementById('sourceBanner');
+    if (existing) existing.remove();
+
+    const isAI    = source === 'AI_GENERATED';
+    const isError = source === 'AI_ERROR' || source === 'AI_EMPTY';
+
+    const banner = document.createElement('div');
+    banner.id    = 'sourceBanner';
+    banner.style.cssText = `
+        padding: 12px 18px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: ${isError ? '#fee2e2' : '#fef9c3'};
+        color:      ${isError ? '#991b1b' : '#854d0e'};
+        border:     1px solid ${isError ? '#fca5a5' : '#fde047'};
+    `;
+
+    banner.innerHTML = `
+        <span style="font-size:18px;flex-shrink:0">${isError ? '⚠️' : '🤖'}</span>
+        <span>${message}</span>
+    `;
+
+    // Insere antes da questionArea
+    const questionArea = document.getElementById('questionArea');
+    if (questionArea) {
+        questionArea.parentNode.insertBefore(banner, questionArea);
+    }
+}
+
 
 async function generateAIQuestions() {
     const topicId = document.getElementById('topicSelect').value;
@@ -155,33 +212,37 @@ async function prefetchItem(index) {
     const q = item.question;
 
     try {
-        // Se a questão já tem explanation estática no banco, usa ela
+        // ── Caso 1: banco relacional tem explicação suficiente ──────────
         if (q.explanation && q.explanation.trim().length > 10) {
             item.prefetchedExplanation = q.explanation;
+            item.prefetchSource        = 'database'; // ← rastreia origem
             item.prefetchDone          = true;
             updatePrefetchIndicator();
             return;
         }
 
-        // Não tem explanation — agenda geração via IA silenciosamente
-        // Só pré-gera se o Ollama estiver disponível (verificação leve)
+        // ── Caso 2: banco vazio — tenta Ollama + RAG ───────────────────
         const ollamaOk = await checkOllamaAvailable();
         if (!ollamaOk) {
             item.prefetchDone  = true;
             item.prefetchError = true;
+            item.prefetchSource = 'unavailable';
             return;
         }
 
-        // Chama endpoint de explicação prévia (sem registrar resposta)
-        const result = await API.post(`/questions/${q.id}/prefetch-explanation`, {});
+        const result = await API.post(
+            `/questions/${q.id}/prefetch-explanation`, {}
+        );
+
         item.prefetchedExplanation = result.explanation || null;
+        item.prefetchSource        = result.source || 'ai'; // 'database','ai','fallback'
         item.prefetchDone          = true;
         updatePrefetchIndicator();
 
     } catch (e) {
-        // Falha silenciosa — a explicação será gerada na hora se necessário
-        item.prefetchDone  = true;
-        item.prefetchError = true;
+        item.prefetchDone   = true;
+        item.prefetchError  = true;
+        item.prefetchSource = 'error';
     }
 }
 
@@ -278,8 +339,6 @@ async function answer(userAnswer) {
 
 // ── Processing Box ──────────────────────────────────────────────────────
 function showProcessingBox(userAnswer) {
-    // ── CORREÇÃO: mostra o que o usuário ESCOLHEU, não o gabarito ──────
-    // userAnswer é o que o usuário clicou (true = CERTO, false = ERRADO)
     const choiceLabel = userAnswer === true  ? '✅ Você marcou: CERTO'
                       : userAnswer === false ? '❌ Você marcou: ERRADO'
                       : '— Em branco';
@@ -291,9 +350,9 @@ function showProcessingBox(userAnswer) {
 
     show('processingBox');
 
-    // Verifica se a próxima explicação já está pré-carregada
-    const item = prefetchQueue[currentIndex];
-    const hasPrefetch = item?.prefetchDone && !item?.prefetchError;
+    const item   = prefetchQueue[currentIndex];
+    const source = item?.prefetchSource;
+    const done   = item?.prefetchDone && !item?.prefetchError;
 
     setTimeout(() => {
         document.getElementById('processingStatus').textContent = 'Verificando gabarito...';
@@ -301,21 +360,45 @@ function showProcessingBox(userAnswer) {
     }, 250);
 
     setTimeout(() => {
-        if (hasPrefetch) {
-            document.getElementById('processingStatus').textContent =
-                '⚡ Carregando explicação pré-processada...';
-            document.getElementById('processingSource').textContent =
-                'Explicação já estava em cache.';
+        if (done) {
+            // Mensagem honesta sobre a origem real
+            const { label, detail } = getSourceLabel(source);
+            document.getElementById('processingStatus').textContent = label;
+            document.getElementById('processingSource').textContent = detail;
         } else {
             document.getElementById('processingStatus').textContent =
                 '🤖 Consultando professor virtual via IA...';
             document.getElementById('processingSource').textContent =
-                'O modelo llama3.2:3b está gerando a explicação. Pode levar alguns segundos.';
+                'PGVector (banco vetorial) + llama3.2:3b estão gerando a explicação.';
         }
         document.getElementById('processingBar').style.width = '75%';
     }, 600);
 }
 
+function getSourceLabel(source) {
+    switch (source) {
+        case 'database':
+            return {
+                label:  '📖 Carregando explicação do banco de dados...',
+                detail: 'Explicação recuperada do PostgreSQL — sem uso de IA.'
+            };
+        case 'ai':
+            return {
+                label:  '🤖 Carregando explicação gerada por IA...',
+                detail: 'Gerada pelo llama3.2:3b com contexto do banco vetorial (PGVector).'
+            };
+        case 'fallback':
+            return {
+                label:  '📖 Carregando explicação de fallback...',
+                detail: 'IA indisponível. Usando explicação estática do banco de dados.'
+            };
+        default:
+            return {
+                label:  '⚡ Carregando explicação...',
+                detail: ''
+            };
+    }
+}
 function hideProcessingBox() {
     hide('processingBox');
     document.getElementById('processingBar').style.width = '0%';
@@ -376,15 +459,21 @@ function renderFeedback(result, userAnswer, isCorrect) {
 
             // Tag de origem da explicação
             const sourceTag = document.getElementById('professorSource');
-            if (sourceTag) {
-                const fromCache = prefetchQueue[currentIndex]?.prefetchDone
-                               && prefetchQueue[currentIndex]?.prefetchedExplanation
-                               === result.professorExplanation;
-                sourceTag.textContent = fromCache
-                    ? '⚡ Cache pré-carregado'
-                    : '🤖 Gerado por IA';
-                sourceTag.className = `prof-source-tag ${fromCache ? 'from-db' : 'from-ai'}`;
-            }
+         if (sourceTag) {
+             const prefetch = prefetchQueue[currentIndex];
+             const source   = prefetch?.prefetchSource;
+
+             const tagConfig = {
+                 database:    { text: '📖 Banco de dados',        cls: 'from-db'       },
+                 ai:          { text: '🤖 IA + Banco Vetorial',   cls: 'from-ai'       },
+                 fallback:    { text: '📖 Fallback estático',      cls: 'from-db'       },
+                 unavailable: { text: '⚠️ IA indisponível',       cls: 'from-fallback' },
+             };
+
+             const config = tagConfig[source] || { text: '🤖 IA', cls: 'from-ai' };
+             sourceTag.textContent = config.text;
+             sourceTag.className   = `prof-source-tag ${config.cls}`;
+         }
 
             profBox.style.display = 'block';
         } else {
@@ -453,4 +542,99 @@ function hide(id) {
 function setAnswerButtons(enabled) {
     document.querySelectorAll('.btn-certo, .btn-errado')
             .forEach(b => b.disabled = !enabled);
+}
+
+// Chamado quando o usuário seleciona um tópico — antes de clicar em Iniciar
+async function onTopicSelected() {
+    const topicId = document.getElementById('topicSelect').value;
+    if (!topicId) {
+        hideSuggestionBanner();
+        return;
+    }
+
+    try {
+        const check = await API.get(`/ia-admin/topics/${topicId}/check`);
+        if (check.suggestGenerate) {
+            showSuggestionBanner(check);
+        } else {
+            hideSuggestionBanner();
+        }
+    } catch (_) {
+        hideSuggestionBanner();
+    }
+}
+
+function showSuggestionBanner(check) {
+    let banner = document.getElementById('suggestionBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'suggestionBanner';
+        const selector = document.getElementById('topicSelector');
+        selector.appendChild(banner);
+    }
+
+    const isZero = check.total === 0;
+
+    banner.style.cssText = `
+        margin-top:14px;padding:14px 16px;border-radius:10px;
+        background:${isZero ? '#ede9fe' : '#fef9c3'};
+        border:1px solid ${isZero ? '#c4b5fd' : '#fde047'};
+        font-size:13px;color:${isZero ? '#5b21b6' : '#854d0e'};
+    `;
+
+    banner.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:10px">
+            <span style="font-size:20px;flex-shrink:0">${isZero ? '🤖' : '💡'}</span>
+            <div style="flex:1">
+                <div style="font-weight:700;margin-bottom:4px">
+                    ${isZero ? 'Sem questões cadastradas' : 'Poucas questões disponíveis'}
+                </div>
+                <div style="margin-bottom:10px">${check.recommendation}</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-sm"
+                            style="background:${isZero?'#7c3aed':'#d97706'};color:#fff"
+                            onclick="generateAndStart()">
+                        🤖 Gerar questões com IA e iniciar
+                    </button>
+                    ${!isZero ? `
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="startStudyWithExisting()">
+                        📚 Usar as ${check.approved} questões existentes
+                    </button>` : ''}
+                </div>
+                ${check.ragChunks < 5 ? `
+                <div style="margin-top:8px;font-size:12px;opacity:.8">
+                    ⚠️ Banco vetorial com apenas ${check.ragChunks} chunk(s).
+                    Adicione material em Admin → Material RAG para melhorar a qualidade das questões geradas.
+                </div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function hideSuggestionBanner() {
+    document.getElementById('suggestionBanner')?.remove();
+}
+
+async function generateAndStart() {
+    const topicId = document.getElementById('topicSelect').value;
+    if (!topicId) return;
+
+    hideSuggestionBanner();
+    const btn = document.querySelector('button[onclick="startStudy()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '🤖 Gerando questões...'; }
+
+    try {
+        await API.post('/questions/generate', { topicId: parseInt(topicId), count: 10 });
+        showToast('Questões geradas! Iniciando estudo...', 'success');
+        await startStudy();
+    } catch (e) {
+        showToast('Erro ao gerar questões. Tente iniciar o estudo mesmo assim.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Iniciar Estudo'; }
+    }
+}
+
+async function startStudyWithExisting() {
+    hideSuggestionBanner();
+    await startStudy();
 }

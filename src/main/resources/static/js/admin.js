@@ -60,6 +60,7 @@ function switchTab(tabName) {
     // Inicializa cada aba na primeira abertura
     if (tabName === 'rag')         loadRagDocuments();
     if (tabName === 'topics-view') initTopicsView();   // ← adicione esta linha
+    if (tabName === 'ia-questions') initIAAdmin();   // ← adicione
 }
 
 function switchTabById(tabName) {
@@ -638,15 +639,6 @@ function closeModalOutside(event) {
     if (event.target.id === 'questionsModal') closeModal();
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
 // Fecha modal com ESC
 document.addEventListener('keydown', e => {

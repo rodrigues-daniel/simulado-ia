@@ -314,3 +314,132 @@
 }
 .empty-state-icon { font-size: 40px; margin-bottom: 10px; }
 .empty-state-text { font-size: 15px; }
+
+
+/* ── IA Stats Grid ──────────────────────────────── */
+.ia-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+}
+
+.ia-stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.ia-stat-card.pending   { border-color: #fde047; background: #fefce8; }
+.ia-stat-card.approved  { border-color: #86efac; background: #f0fdf4; }
+.ia-stat-card.rejected  { border-color: #fca5a5; background: #fef2f2; }
+
+.ia-stat-value { font-size: 28px; font-weight: 800; color: var(--primary); }
+.ia-stat-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+
+/* ── IA Question Card ───────────────────────────── */
+.ia-questions-list { display: flex; flex-direction: column; gap: 12px; }
+
+.ia-question-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color .15s;
+}
+.ia-question-card:hover { border-color: #a78bfa; }
+
+.ia-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.ia-card-meta { display: flex; flex-direction: column; gap: 2px; }
+.ia-topic-label      { font-size: 13px; font-weight: 600; color: var(--primary); }
+.ia-discipline-label { font-size: 11px; color: var(--text-muted); }
+
+.ia-card-statement {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text);
+    padding: 10px;
+    background: var(--surface2);
+    border-left: 3px solid #a78bfa;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 10px;
+}
+
+.ia-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.ia-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.ia-badge.pending  { background: #fef9c3; color: #854d0e; }
+.ia-badge.approved { background: #dcfce7; color: #166534; }
+.ia-badge.rejected { background: #fee2e2; color: #991b1b; }
+
+.ia-review-note {
+    font-size: 12px;
+    color: #5b21b6;
+    background: #ede9fe;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+/* ── RAG Quality ────────────────────────────────── */
+.rag-quality-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.rag-qual-card {
+    padding: 14px;
+    border-radius: 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.rag-qual-card.excellent   { background: #dcfce7; border: 1px solid #86efac; }
+.rag-qual-card.adequate    { background: #dbeafe; border: 1px solid #93c5fd; }
+.rag-qual-card.basic       { background: #fef9c3; border: 1px solid #fde047; }
+.rag-qual-card.insufficient{ background: #fee2e2; border: 1px solid #fca5a5; }
+.rag-qual-card.no-material { background: #f1f5f9; border: 1px solid #cbd5e1; }
+.rag-qual-card.score       { background: var(--primary); border: none; }
+.rag-qual-card.score .rag-qual-value,
+.rag-qual-card.score .rag-qual-label { color: #fff; }
+
+.rag-qual-value { font-size: 26px; font-weight: 800; color: var(--text); }
+.rag-qual-label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+
+.rag-orientations-box {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.rag-orientation-item {
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+.rag-orientation-item:last-child { border-bottom: none; }

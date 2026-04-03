@@ -603,3 +603,5 @@ input:focus {
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
 }
+
+.prof-source-tag.from-fallback { background: #fff7ed; color: #c2410c; }
