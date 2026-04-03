@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: cebraspe_postgres
+    environment:
+      POSTGRES_DB: cebraspe_study
+      POSTGRES_USER: cebraspe
+      POSTGRES_PASSWORD: cebraspe123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cebraspe -d cebraspe_study" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

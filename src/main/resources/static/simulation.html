@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcursoAI — Simulado Cebraspe</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/simulation.css">
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">⚖️</span>
+            <span class="logo-text">ConcursoAI</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/index.html">📊 Dashboard</a></li>
+            <li><a href="/study.html">📚 Estudar</a></li>
+            <li><a href="/simulation.html" class="active">🎯 Simulado</a></li>
+            <li><a href="/essay.html">✍️ Discursiva</a></li>
+            <li><a href="/pareto.html">📈 Prioridades</a></li>
+            <li><a href="/admin.html">⚙️ Admin</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <!-- Setup do Simulado -->
+        <section id="setupArea" class="section-card">
+            <h1>🎯 Simulador de Risco Cebraspe</h1>
+            <p class="subtitle">Nota líquida: cada erro anula uma questão certa.</p>
+            <div class="setup-form">
+                <div class="form-group">
+                    <label>Concurso</label>
+                    <select id="contestSelect"></select>
+                </div>
+                <div class="form-group">
+                    <label>Número de Questões</label>
+                    <select id="questionCount">
+                        <option value="10">10 questões</option>
+                        <option value="20" selected>20 questões</option>
+                        <option value="30">30 questões</option>
+                        <option value="40">40 questões</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tempo Limite (minutos)</label>
+                    <input type="number" id="timeLimit" value="30" min="5" max="180">
+                </div>
+                <button class="btn btn-primary btn-large" onclick="startSimulation()">
+                    🚀 Iniciar Simulado
+                </button>
+            </div>
+        </section>
+
+        <!-- Área do Simulado -->
+        <section id="simulationArea" style="display:none">
+            <div class="sim-topbar">
+                <div class="sim-progress">
+                    <span id="simProgress">0/0</span>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+                <div class="sim-timer" id="timerDisplay">⏱️ 00:00</div>
+                <button class="btn btn-danger btn-sm" onclick="finishSimulation()">
+                    Finalizar
+                </button>
+            </div>
+
+            <div class="sim-layout">
+                <!-- Painel de Questões (lateral) -->
+                <div class="questions-panel">
+                    <div id="questionsNav" class="questions-nav"></div>
+                </div>
+
+                <!-- Questão atual -->
+                <div class="sim-question-area section-card">
+                    <div class="question-number">
+                        Questão <span id="simCurrentQ">1</span>
+                    </div>
+                    <div id="simStatement" class="question-statement"></div>
+                    <div class="sim-answer-row">
+                        <button class="btn btn-certo" id="btnCerto" onclick="simAnswer(true)">✅ CERTO</button>
+                        <button class="btn btn-branco" id="btnBranco" onclick="simAnswer(null)">⬜ EM BRANCO</button>
+                        <button class="btn btn-errado" id="btnErrado" onclick="simAnswer(false)">❌ ERRADO</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Resultado do Simulado -->
+        <section id="resultArea" class="section-card" style="display:none">
+            <h2>📊 Resultado do Simulado</h2>
+
+            <div class="result-scores">
+                <div class="score-card">
+                    <span class="score-label">Nota Bruta</span>
+                    <span class="score-value" id="grossScore">--</span>
+                </div>
+                <div class="score-card highlight">
+                    <span class="score-label">Nota Líquida ★</span>
+                    <span class="score-value" id="netScore">--</span>
+                </div>
+                <div class="score-card">
+                    <span class="score-label">Acertos</span>
+                    <span class="score-value green" id="correctCount">--</span>
+                </div>
+                <div class="score-card">
+                    <span class="score-label">Erros</span>
+                    <span class="score-value red" id="wrongCount">--</span>
+                </div>
+            </div>
+
+            <!-- Tendência de Chute -->
+            <div class="risk-panel" id="riskPanel">
+                <h3>🎲 Análise de Tendência de Chute</h3>
+                <div class="risk-level" id="riskLevel"></div>
+                <p id="riskDescription"></p>
+            </div>
+
+            <!-- Palavras-Chave Armadilha -->
+            <div id="trapsReportBox" class="traps-report" style="display:none">
+                <h3>⚠️ Palavras-Armadilha que te pegaram</h3>
+                <div id="trapsReport" class="trap-tags"></div>
+            </div>
+
+            <div class="result-actions">
+                <button class="btn btn-primary" onclick="location.reload()">
+                    🔄 Novo Simulado
+                </button>
+                <a href="/index.html" class="btn btn-secondary">← Dashboard</a>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/simulation.js"></script>
+</body>
+
+</html>

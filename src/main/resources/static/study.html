@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcursoAI — Estudo Inverso</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">⚖️</span>
+            <span class="logo-text">ConcursoAI</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/index.html">📊 Dashboard</a></li>
+            <li><a href="/study.html" class="active">📚 Estudar</a></li>
+            <li><a href="/simulation.html">🎯 Simulado</a></li>
+            <li><a href="/essay.html">✍️ Discursiva</a></li>
+            <li><a href="/pareto.html">📈 Prioridades</a></li>
+            <li><a href="/admin.html">⚙️ Admin</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>📚 Módulo de Estudo Inverso</h1>
+            <p class="subtitle">Comece pelas questões. Aprenda com os erros.</p>
+        </header>
+
+        <!-- Seletor de Tópico -->
+        <section class="section-card" id="topicSelector">
+            <h2>Selecione o Tópico</h2>
+            <div class="filter-row">
+                <select id="contestSelect" onchange="loadTopics()">
+                    <option value="">Selecione o concurso</option>
+                </select>
+                <select id="topicSelect">
+                    <option value="">Selecione o tópico</option>
+                </select>
+                <button class="btn btn-primary" onclick="startStudy()">
+                    🚀 Iniciar Estudo
+                </button>
+                <button class="btn btn-secondary" onclick="generateAIQuestions()">
+                    🤖 Gerar com IA
+                </button>
+            </div>
+        </section>
+
+        <!-- Área de Questão -->
+        <section class="section-card" id="questionArea" style="display:none">
+            <div class="question-header">
+                <div class="question-progress">
+                    Questão <span id="currentQ">1</span> de <span id="totalQ">0</span>
+                </div>
+                <div class="question-difficulty" id="difficultyBadge"></div>
+            </div>
+
+            <!-- Trap Keywords Alert -->
+            <div id="trapAlert" class="trap-alert" style="display:none">
+                <span>⚠️ Atenção: Esta questão contém palavras-armadilha!</span>
+                <span id="trapWords" class="trap-words"></span>
+            </div>
+
+            <div class="question-statement" id="questionStatement"></div>
+
+            <div class="answer-buttons">
+                <button class="btn btn-certo" onclick="answer(true)">
+                    ✅ CERTO
+                </button>
+                <button class="btn btn-errado" onclick="answer(false)">
+                    ❌ ERRADO
+                </button>
+            </div>
+        </section>
+
+        <!-- Feedback do Estudo Inverso -->
+        <section id="feedbackArea" class="section-card feedback-area" style="display:none">
+            <div id="answerResult" class="answer-result"></div>
+
+            <!-- Parágrafo específico da lei (Estudo Inverso) -->
+            <div id="lawParagraphBox" class="law-paragraph-box" style="display:none">
+                <div class="law-header">
+                    📖 <span id="lawReference"></span>
+                </div>
+                <blockquote id="lawParagraph" class="law-quote"></blockquote>
+            </div>
+
+            <!-- Campo do Professor -->
+            <div id="professorBox" class="professor-box" style="display:none">
+                <div class="professor-header">
+                    <img src="/img/professor-icon.svg" class="prof-icon" alt="">
+                    <span>💡 Explicação do Professor</span>
+                </div>
+                <div id="professorExplanation" class="professor-text"></div>
+                <div id="professorTip" class="professor-tip"></div>
+            </div>
+
+            <button class="btn btn-primary" onclick="nextQuestion()">
+                Próxima Questão →
+            </button>
+        </section>
+
+        <!-- Resultado da Sessão -->
+        <section id="sessionResult" class="section-card" style="display:none">
+            <h2>🏁 Resultado da Sessão</h2>
+            <div id="sessionStats" class="session-stats"></div>
+            <button class="btn btn-primary" onclick="restartStudy()">
+                🔄 Estudar Novamente
+            </button>
+            <a href="/index.html" class="btn btn-secondary">← Dashboard</a>
+        </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/study.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: simulado
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cebraspe_study
+    username: cebraspe
+    password: cebraspe123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: llama3.2:3b
+        options:
+          temperature: 0.7
+          num-ctx: 4096
+      embedding:
+        model: nomic-embed-text
+        options:
+          num-ctx: 2048
+
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 768
+        initialize-schema: true
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+server:
+  port: 8080
+
+logging:
+  level:
+    br.com.cebraspe: DEBUG
+    org.springframework.ai: INFO
+    org.springframework.jdbc: DEBUG
+
+app:
+  pareto:
+    threshold: 0.70
+  simulation:
+    penalty-factor: 1.0
+  rag:
+    chunk-size: 387
+    chunk-overlap: 50

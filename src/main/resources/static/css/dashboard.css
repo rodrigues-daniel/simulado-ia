@@ -1,0 +1,147 @@
+/* ── Metrics Grid ───────────────────────────────── */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.metric-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid transparent;
+    transition: transform .2s;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.metric-card.primary {
+    border-left-color: var(--primary-light);
+}
+
+.metric-card.warning {
+    border-left-color: var(--warning);
+}
+
+.metric-card.danger {
+    border-left-color: var(--danger);
+}
+
+.metric-card.success {
+    border-left-color: var(--success);
+}
+
+.metric-icon {
+    font-size: 28px;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.metric-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+/* ── Topics Grid (Pareto) ───────────────────────── */
+.topics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.topic-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.topic-card:hover {
+    border-color: var(--primary-light);
+    box-shadow: var(--shadow);
+}
+
+.topic-name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+
+.topic-discipline {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.topic-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.topic-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--success);
+}
+
+.topic-rate {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--success);
+    margin-top: 4px;
+}
+
+.topic-rate.medium {
+    color: var(--warning);
+}
+
+.topic-rate.low {
+    color: var(--danger);
+}
+
+/* ── Keyword Grid ───────────────────────────────── */
+.keyword-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.keyword-card {
+    padding: 10px 16px;
+    border-radius: 20px;
+    border: 2px solid;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.keyword-card.high-risk {
+    border-color: var(--danger);
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.keyword-card.med-risk {
+    border-color: var(--warning);
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.keyword-card.low-risk {
+    border-color: var(--border);
+    background: var(--bg);
+    color: var(--text-muted);
+}

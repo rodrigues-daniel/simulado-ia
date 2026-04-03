@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcursoAI — Prioridades Pareto</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pareto.css">
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">⚖️</span>
+            <span class="logo-text">ConcursoAI</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/index.html">📊 Dashboard</a></li>
+            <li><a href="/study.html">📚 Estudar</a></li>
+            <li><a href="/simulation.html">🎯 Simulado</a></li>
+            <li><a href="/essay.html">✍️ Discursiva</a></li>
+            <li><a href="/pareto.html" class="active">📈 Prioridades</a></li>
+            <li><a href="/admin.html">⚙️ Admin</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>📈 Análise de Prioridades (Pareto 80/20)</h1>
+            <p class="subtitle">Tópicos com maior incidência histórica no Cebraspe. Foque onde importa.</p>
+        </header>
+
+        <!-- Seletor + Ações -->
+        <section class="section-card">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label>Concurso</label>
+                    <select id="contestSelect" onchange="loadPareto()">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content:flex-end">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary" onclick="recalculate()">
+                        🔄 Recalcular Prioridades
+                    </button>
+                </div>
+            </div>
+
+            <!-- Legenda -->
+            <div class="legend-row">
+                <span class="legend-item legend-high">≥ 80% — Alta prioridade</span>
+                <span class="legend-item legend-med">70–79% — Prioridade média</span>
+                <span class="legend-item legend-low">Ocultos — Baixa relevância</span>
+            </div>
+        </section>
+
+        <!-- Métricas Pareto -->
+        <div class="pareto-metrics" id="paretoMetrics" style="display:none">
+            <div class="pareto-metric-card">
+                <span class="pareto-metric-value" id="metricTotal">--</span>
+                <span class="pareto-metric-label">Tópicos Prioritários</span>
+            </div>
+            <div class="pareto-metric-card">
+                <span class="pareto-metric-value" id="metricAvgRate">--</span>
+                <span class="pareto-metric-label">Incidência Média</span>
+            </div>
+            <div class="pareto-metric-card">
+                <span class="pareto-metric-value" id="metricHidden">--</span>
+                <span class="pareto-metric-label">Tópicos Ocultos</span>
+            </div>
+        </div>
+
+        <!-- Tópicos Prioritários -->
+        <section class="section-card" id="prioritySection" style="display:none">
+            <div class="section-header">
+                <h2>🎯 Tópicos Prioritários</h2>
+                <span class="badge badge-success" id="priorityCount">0</span>
+            </div>
+            <div id="priorityList" class="pareto-list"></div>
+        </section>
+
+        <!-- Tópicos Ocultos -->
+        <section class="section-card" id="hiddenSection" style="display:none">
+            <div class="section-header">
+                <h2>👁️ Tópicos Ocultos do Cronograma</h2>
+                <button class="btn btn-secondary btn-sm" onclick="toggleHiddenView()">
+                    Mostrar / Ocultar
+                </button>
+            </div>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">
+                Estes tópicos têm baixa incidência histórica e foram retirados do cronograma imediato.
+                Você pode reativá-los manualmente.
+            </p>
+            <div id="hiddenList" class="pareto-list" style="display:none"></div>
+        </section>
+
+        <!-- Performance por Tópico -->
+        <section class="section-card" id="performanceSection" style="display:none">
+            <div class="section-header">
+                <h2>📊 Seu Desempenho por Tópico</h2>
+            </div>
+            <div id="performanceList" class="performance-list"></div>
+        </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/pareto.js"></script>
+</body>
+
+</html>

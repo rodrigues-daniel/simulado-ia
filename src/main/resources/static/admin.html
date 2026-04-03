@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcursoAI — Administração</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">⚖️</span>
+            <span class="logo-text">ConcursoAI</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/index.html">📊 Dashboard</a></li>
+            <li><a href="/study.html">📚 Estudar</a></li>
+            <li><a href="/simulation.html">🎯 Simulado</a></li>
+            <li><a href="/essay.html">✍️ Discursiva</a></li>
+            <li><a href="/pareto.html">📈 Prioridades</a></li>
+            <li><a href="/admin.html" class="active">⚙️ Admin</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>⚙️ Painel Administrativo</h1>
+            <p class="subtitle">Carga manual de dados via payload JSON</p>
+        </header>
+
+        <!-- Tabs de Carga -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('contests')">
+                🏛️ Concursos
+            </button>
+            <button class="tab" onclick="switchTab('topics')">
+                📋 Tópicos
+            </button>
+            <button class="tab" onclick="switchTab('questions')">
+                ❓ Questões
+            </button>
+            <button class="tab" onclick="switchTab('rag')">
+                📄 Material RAG
+            </button>
+        </div>
+
+        <!-- Tab: Concursos -->
+        <section id="tab-contests" class="tab-content section-card active">
+            <h2>Carga de Concursos</h2>
+            <p class="hint">Insira um array JSON com os concursos a importar:</p>
+            <div class="example-payload">
+                <code>Exemplo:
+[{
+  "name": "TCU - Técnico Federal de Controle Externo",
+  "organ": "Tribunal de Contas da União",
+  "role": "Técnico Administrativo",
+  "year": 2025,
+  "level": "MEDIO",
+  "isDefault": true
+}]</code>
+            </div>
+            <textarea id="contestsPayload" class="json-editor" placeholder="Cole o JSON aqui..."></textarea>
+            <div class="action-row">
+                <button class="btn btn-primary" onclick="loadContests()">
+                    📤 Importar Concursos
+                </button>
+                <button class="btn btn-secondary" onclick="loadExample('contests')">
+                    📋 Carregar Exemplo
+                </button>
+            </div>
+            <div id="contestsResult" class="result-box"></div>
+        </section>
+
+        <!-- Tab: Tópicos -->
+        <section id="tab-topics" class="tab-content section-card" style="display:none">
+            <h2>Carga de Tópicos</h2>
+            <div class="example-payload">
+                <code>Exemplo:
+[{
+  "contestId": 1,
+  "name": "Princípios da Administração Pública",
+  "discipline": "Direito Administrativo",
+  "lawReference": "CF/1988, Art. 37",
+  "incidenceRate": 0.85
+}]</code>
+            </div>
+            <textarea id="topicsPayload" class="json-editor" placeholder="Cole o JSON aqui..."></textarea>
+            <div class="action-row">
+                <button class="btn btn-primary" onclick="loadTopics()">
+                    📤 Importar Tópicos
+                </button>
+                <button class="btn btn-secondary" onclick="loadExample('topics')">
+                    📋 Carregar Exemplo
+                </button>
+            </div>
+            <div id="topicsResult" class="result-box"></div>
+        </section>
+
+        <!-- Tab: Questões -->
+        <section id="tab-questions" class="tab-content section-card" style="display:none">
+            <h2>Carga de Questões</h2>
+            <div class="example-payload">
+                <code>Exemplo:
+[{
+  "topicId": 1,
+  "contestId": 1,
+  "statement": "De acordo com o art. 37 da CF/88, a administração pública direta e indireta obedecerá exclusivamente ao princípio da legalidade.",
+  "correctAnswer": false,
+  "lawParagraph": "Art. 37. A administração pública direta e indireta de qualquer dos Poderes da União, dos Estados, do Distrito Federal e dos Municípios obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência.",
+  "lawReference": "CF/1988, Art. 37, caput",
+  "explanation": "ERRADO. O artigo não menciona 'exclusivamente' o princípio da legalidade — são cinco princípios: LIMPE.",
+  "professorTip": "A palavra 'exclusivamente' é clássica armadilha Cebraspe. O Art. 37 traz 5 princípios (LIMPE), nunca apenas um.",
+  "trapKeywords": ["exclusivamente"],
+  "year": 2023,
+  "source": "TCU 2023",
+  "difficulty": "FACIL"
+}]</code>
+            </div>
+            <textarea id="questionsPayload" class="json-editor" placeholder="Cole o JSON aqui..."></textarea>
+            <div class="action-row">
+                <button class="btn btn-primary" onclick="loadQuestions()">
+                    📤 Importar Questões
+                </button>
+                <button class="btn btn-secondary" onclick="loadExample('questions')">
+                    📋 Carregar Exemplo
+                </button>
+            </div>
+            <div id="questionsResult" class="result-box"></div>
+        </section>
+
+        <!-- Tab: RAG -->
+        <section id="tab-rag" class="tab-content section-card" style="display:none">
+            <h2>Ingestão de Material para RAG</h2>
+
+            <div class="rag-options">
+                <!-- Upload PDF -->
+                <div class="rag-option">
+                    <h3>📄 Upload de PDF</h3>
+                    <input type="file" id="pdfFile" accept=".pdf">
+                    <div class="form-row">
+                        <input type="number" id="ragTopicId" placeholder="ID do Tópico (opcional)">
+                        <input type="number" id="ragContestId" placeholder="ID do Concurso (opcional)">
+                    </div>
+                    <button class="btn btn-primary" onclick="uploadPdf()">
+                        📤 Enviar PDF
+                    </button>
+                </div>
+
+                <!-- Ingestão por texto JSON -->
+                <div class="rag-option">
+                    <h3>📝 Ingestão por Texto</h3>
+                    <div class="example-payload">
+                        <code>{
+  "name": "Lei 8.112/1990 - Capítulo I",
+  "content": "Art. 1º...",
+  "topicId": 1,
+  "contestId": 1
+}</code>
+                    </div>
+                    <textarea id="ragTextPayload" class="json-editor"
+                        placeholder="Cole o JSON com name e content..."></textarea>
+                    <button class="btn btn-primary" onclick="ingestText()">
+                        📤 Ingerir Texto
+                    </button>
+                </div>
+            </div>
+
+            <div id="ragResult" class="result-box"></div>
+
+            <h3>📚 Documentos Ingeridos</h3>
+            <div id="ragDocumentsList" class="documents-list"></div>
+            <button class="btn btn-secondary btn-sm" onclick="loadRagDocuments()">
+                🔄 Atualizar Lista
+            </button>
+        </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin.js"></script>
+</body>
+
+</html>

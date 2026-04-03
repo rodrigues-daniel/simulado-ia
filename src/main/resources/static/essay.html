@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcursoAI — Discursiva</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/essay.css">
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">⚖️</span>
+            <span class="logo-text">ConcursoAI</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/index.html">📊 Dashboard</a></li>
+            <li><a href="/study.html">📚 Estudar</a></li>
+            <li><a href="/simulation.html">🎯 Simulado</a></li>
+            <li><a href="/essay.html" class="active">✍️ Discursiva</a></li>
+            <li><a href="/pareto.html">📈 Prioridades</a></li>
+            <li><a href="/admin.html">⚙️ Admin</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>✍️ Estruturador de Discursiva</h1>
+            <p class="subtitle">Gere esqueletos de redação com palavras-chave obrigatórias para o Cebraspe</p>
+        </header>
+
+        <!-- Gerador -->
+        <section class="section-card">
+            <h2>Gerar Esqueleto</h2>
+            <div class="filter-row" style="margin-top:16px">
+                <div class="form-group">
+                    <label>Concurso</label>
+                    <select id="contestSelect" onchange="loadTopics()">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tópico</label>
+                    <select id="topicSelect">
+                        <option value="">Selecione o concurso primeiro</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content:flex-end">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary" onclick="generateSkeleton()">
+                        🤖 Gerar com IA
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <div id="loadingBox" class="section-card" style="display:none;text-align:center;padding:40px">
+            <div style="font-size:36px;margin-bottom:12px">🤖</div>
+            <div style="font-size:16px;font-weight:600;color:var(--primary)">Gerando esqueleto com IA...</div>
+            <div style="color:var(--text-muted);margin-top:6px;font-size:13px">
+                O modelo está elaborando a estrutura da redação. Aguarde alguns segundos.
+            </div>
+        </div>
+
+        <!-- Resultado -->
+        <section id="skeletonResult" class="section-card" style="display:none">
+            <div class="essay-header">
+                <h2 id="essayTitle"></h2>
+                <button class="btn btn-secondary btn-sm" onclick="copySkeleton()">
+                    📋 Copiar
+                </button>
+            </div>
+
+            <!-- Introdução -->
+            <div class="essay-block">
+                <div class="essay-block-label">📌 Introdução</div>
+                <div id="essayIntro" class="essay-block-content"></div>
+            </div>
+
+            <!-- Desenvolvimento -->
+            <div class="essay-block">
+                <div class="essay-block-label">📝 Desenvolvimento</div>
+                <div id="essayBody" class="essay-block-content"></div>
+            </div>
+
+            <!-- Conclusão -->
+            <div class="essay-block">
+                <div class="essay-block-label">🎯 Conclusão</div>
+                <div id="essayConclusion" class="essay-block-content"></div>
+            </div>
+
+            <!-- Palavras-chave obrigatórias -->
+            <div class="essay-block keywords-block">
+                <div class="essay-block-label">🔑 Palavras-chave Obrigatórias</div>
+                <div id="essayKeywords" class="keywords-row"></div>
+            </div>
+
+            <!-- Dica da Banca -->
+            <div id="bancaTipBox" class="banca-tip-box">
+                <span class="banca-tip-label">💡 Dica do Professor sobre a Banca</span>
+                <p id="bancaTip"></p>
+            </div>
+        </section>
+
+        <!-- Histórico -->
+        <section class="section-card">
+            <div class="section-header">
+                <h2>📚 Esqueletos Gerados</h2>
+                <button class="btn btn-secondary btn-sm" onclick="loadHistory()">
+                    🔄 Atualizar
+                </button>
+            </div>
+            <div id="historyList" class="history-list">
+                <p style="color:var(--text-muted)">Selecione um tópico para ver histórico.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/essay.js"></script>
+</body>
+
+</html>

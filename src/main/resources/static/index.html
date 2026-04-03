@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcursoAI — Estudo Acelerado Cebraspe</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-icon">⚖️</span>
+            <span class="logo-text">ConcursoAI</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/index.html" class="active">📊 Dashboard</a></li>
+            <li><a href="/study.html">📚 Estudar</a></li>
+            <li><a href="/simulation.html">🎯 Simulado</a></li>
+            <li><a href="/essay.html">✍️ Discursiva</a></li>
+            <li><a href="/pareto.html">📈 Prioridades</a></li>
+            <li><a href="/admin.html">⚙️ Admin</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Dashboard de Estudos</h1>
+            <div class="contest-selector">
+                <select id="contestSelect" onchange="loadDashboard()">
+                    <option value="">Carregando concursos...</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Cards de Métricas -->
+        <section class="metrics-grid">
+            <div class="metric-card primary">
+                <div class="metric-icon">✅</div>
+                <div class="metric-info">
+                    <span class="metric-value" id="accuracyRate">--</span>
+                    <span class="metric-label">Taxa de Acerto</span>
+                </div>
+            </div>
+            <div class="metric-card warning">
+                <div class="metric-icon">⚠️</div>
+                <div class="metric-info">
+                    <span class="metric-value" id="pendingTopics">--</span>
+                    <span class="metric-label">Tópicos Prioritários</span>
+                </div>
+            </div>
+            <div class="metric-card danger">
+                <div class="metric-icon">🎣</div>
+                <div class="metric-info">
+                    <span class="metric-value" id="trapErrors">--</span>
+                    <span class="metric-label">Erros por Pegadinhas</span>
+                </div>
+            </div>
+            <div class="metric-card success">
+                <div class="metric-icon">🏆</div>
+                <div class="metric-info">
+                    <span class="metric-value" id="masteredTopics">--</span>
+                    <span class="metric-label">Tópicos Dominados</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tópicos Pareto 80/20 -->
+        <section class="section-card">
+            <div class="section-header">
+                <h2>🎯 Tópicos Prioritários (Pareto 80/20)</h2>
+                <span class="badge badge-info">≥70% de incidência</span>
+            </div>
+            <div id="paretoTopics" class="topics-grid">
+                <div class="loading-spinner">Carregando...</div>
+            </div>
+        </section>
+
+        <!-- Palavras-Chave Armadilha -->
+        <section class="section-card">
+            <div class="section-header">
+                <h2>⚠️ Suas Pegadinhas Mais Frequentes</h2>
+            </div>
+            <div id="keywordTraps" class="keyword-grid"></div>
+        </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/dashboard.js"></script>
+</body>
+
+</html>
