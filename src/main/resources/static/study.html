@@ -66,21 +66,37 @@
 
             <div class="question-statement" id="questionStatement"></div>
 
+            <!-- Indicador de pré-carregamento -->
+            <div id="prefetchIndicator" class="prefetch-indicator" style="display:none"></div>
+
             <div class="answer-buttons">
-                <button class="btn btn-certo" onclick="answer(true)">
-                    ✅ CERTO
-                </button>
-                <button class="btn btn-errado" onclick="answer(false)">
-                    ❌ ERRADO
-                </button>
+                <button class="btn btn-certo"  onclick="answer(true)">✅ CERTO</button>
+                <button class="btn btn-errado" onclick="answer(false)">❌ ERRADO</button>
             </div>
+        </section>
+
+        <!-- ── Indicador de Processamento ── -->
+        <section id="processingBox" class="section-card processing-box" style="display:none">
+            <div class="processing-header">
+                <div id="processingAnswer" class="processing-answer"></div>
+            </div>
+            <div class="processing-status-row">
+                <div class="processing-spinner"></div>
+                <span id="processingStatus" class="processing-status-text">
+                    Registrando resposta...
+                </span>
+            </div>
+            <div class="processing-bar-track">
+                <div id="processingBar" class="processing-bar-fill"></div>
+            </div>
+            <div id="processingSource" class="processing-source"></div>
         </section>
 
         <!-- Feedback do Estudo Inverso -->
         <section id="feedbackArea" class="section-card feedback-area" style="display:none">
             <div id="answerResult" class="answer-result"></div>
 
-            <!-- Parágrafo específico da lei (Estudo Inverso) -->
+            <!-- Parágrafo específico da lei -->
             <div id="lawParagraphBox" class="law-paragraph-box" style="display:none">
                 <div class="law-header">
                     📖 <span id="lawReference"></span>
@@ -91,14 +107,14 @@
             <!-- Campo do Professor -->
             <div id="professorBox" class="professor-box" style="display:none">
                 <div class="professor-header">
-                    <img src="/img/professor-icon.svg" class="prof-icon" alt="">
                     <span>💡 Explicação do Professor</span>
+                    <span id="professorSource" class="prof-source-tag"></span>
                 </div>
                 <div id="professorExplanation" class="professor-text"></div>
                 <div id="professorTip" class="professor-tip"></div>
             </div>
 
-            <button class="btn btn-primary" onclick="nextQuestion()">
+            <button class="btn btn-primary" onclick="nextQuestion()" style="margin-top:16px">
                 Próxima Questão →
             </button>
         </section>
@@ -107,10 +123,10 @@
         <section id="sessionResult" class="section-card" style="display:none">
             <h2>🏁 Resultado da Sessão</h2>
             <div id="sessionStats" class="session-stats"></div>
-            <button class="btn btn-primary" onclick="restartStudy()">
-                🔄 Estudar Novamente
-            </button>
-            <a href="/index.html" class="btn btn-secondary">← Dashboard</a>
+            <div style="display:flex;gap:12px;margin-top:20px">
+                <button class="btn btn-primary"   onclick="restartStudy()">🔄 Estudar Novamente</button>
+                <a href="/index.html" class="btn btn-secondary">← Dashboard</a>
+            </div>
         </section>
     </main>
 

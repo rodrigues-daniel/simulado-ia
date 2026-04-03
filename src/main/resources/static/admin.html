@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ConcursoAI — Administração</title>
     <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/admin.css">
 </head>
 
 <body>
@@ -43,6 +44,9 @@
             </button>
             <button class="tab" onclick="switchTab('rag')">
                 📄 Material RAG
+            </button>
+            <button class="tab" onclick="switchTab('topics-view')">
+                📊 Visão de Tópicos
             </button>
         </div>
 
@@ -175,7 +179,83 @@
                 🔄 Atualizar Lista
             </button>
         </section>
+
+        <!-- Tab: Visão de Tópicos -->
+        <section id="tab-topics-view" class="tab-content section-card" style="display:none">
+            <h2>📊 Visão de Tópicos por Disciplina</h2>
+
+            <div class="filter-row" style="margin-bottom:20px">
+                <div class="form-group">
+                    <label>Concurso</label>
+                    <select id="topicsViewContest" onchange="loadTopicsView()">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Filtrar por Disciplina</label>
+                    <select id="disciplineFilter" onchange="filterByDiscipline()">
+                        <option value="">Todas as disciplinas</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ordenar por</label>
+                    <select id="sortOrder" onchange="filterByDiscipline()">
+                        <option value="incidence">Incidência (maior)</option>
+                        <option value="name">Nome A-Z</option>
+                        <option value="questions">Nº de Questões</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content:flex-end">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-secondary btn-sm" onclick="loadTopicsView()">
+                        🔄 Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resumo geral -->
+            <div id="topicsViewSummary" class="topics-view-summary" style="display:none">
+                <div class="tv-summary-card">
+                    <span class="tv-summary-value" id="tvTotalTopics">--</span>
+                    <span class="tv-summary-label">Total de Tópicos</span>
+                </div>
+                <div class="tv-summary-card">
+                    <span class="tv-summary-value" id="tvTotalQuestions">--</span>
+                    <span class="tv-summary-label">Total de Questões</span>
+                </div>
+                <div class="tv-summary-card">
+                    <span class="tv-summary-value" id="tvTotalDisciplines">--</span>
+                    <span class="tv-summary-label">Disciplinas</span>
+                </div>
+                <div class="tv-summary-card">
+                    <span class="tv-summary-value" id="tvAvgIncidence">--</span>
+                    <span class="tv-summary-label">Incidência Média</span>
+                </div>
+            </div>
+
+            <!-- Conteúdo agrupado por disciplina -->
+            <div id="topicsViewContent">
+                <p style="color:var(--text-muted)">Selecione um concurso para visualizar.</p>
+            </div>
+        </section>
     </main>
+
+    <!-- Modal de questões por tópico -->
+    <div id="questionsModal" class="modal-overlay" onclick="closeModalOutside(event)">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modalTopicName">Questões do Tópico</h3>
+                    <div id="modalTopicMeta"
+                         style="font-size:12px;opacity:.8;margin-top:2px"></div>
+                </div>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="loading-spinner">Carregando questões...</div>
+            </div>
+        </div>
+    </div>
 
     <script src="/js/api.js"></script>
     <script src="/js/admin.js"></script>
