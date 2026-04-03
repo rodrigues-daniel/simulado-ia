@@ -413,12 +413,21 @@ function renderFeedback(result, userAnswer, isCorrect) {
         hide('questionArea');
         show('feedbackArea');
 
+        const q = questions[currentIndex];
+
+        // ── Origem da questão ───────────────────────────────────────────
+        const originTag = result.fromIA
+            ? '<span class="question-origin-tag from-ia">🤖 Gerada por IA</span>'
+            : '<span class="question-origin-tag from-manual">📝 Base Manual</span>';
+
         const resultEl = document.getElementById('answerResult');
 
-        // ── Usa isCorrect calculado no bloco answer() ───────────────────
         if (isCorrect) {
             resultEl.innerHTML = `
                 <div class="answer-correct">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+                        ${originTag}
+                    </div>
                     <div class="answer-big-icon">✅</div>
                     <div class="answer-title correct">CORRETO!</div>
                     <div class="answer-subtitle">
@@ -428,16 +437,19 @@ function renderFeedback(result, userAnswer, isCorrect) {
         } else {
             resultEl.innerHTML = `
                 <div class="answer-wrong">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+                        ${originTag}
+                    </div>
                     <div class="answer-big-icon">❌</div>
                     <div class="answer-title wrong">INCORRETO!</div>
                     <div class="answer-subtitle">
                         Resposta correta:
-                        <strong>${result.correctAnswer === true ? 'CERTO' : 'ERRADO'}</strong>
+                        <strong>${result.correctAnswer ? 'CERTO' : 'ERRADO'}</strong>
                     </div>
                 </div>`;
         }
 
-        // Parágrafo da lei — apenas no erro
+        // ── Parágrafo da lei ────────────────────────────────────────────
         const lawBox = document.getElementById('lawParagraphBox');
         if (!isCorrect && result.lawParagraph) {
             document.getElementById('lawReference').textContent =
@@ -449,7 +461,7 @@ function renderFeedback(result, userAnswer, isCorrect) {
             lawBox.style.display = 'none';
         }
 
-        // Campo do professor — apenas no erro
+        // ── Campo do professor ──────────────────────────────────────────
         const profBox = document.getElementById('professorBox');
         if (!isCorrect && result.professorExplanation) {
             document.getElementById('professorExplanation').textContent =
@@ -458,30 +470,227 @@ function renderFeedback(result, userAnswer, isCorrect) {
                 result.professorTip ? `💡 ${result.professorTip}` : '';
 
             // Tag de origem da explicação
-            const sourceTag = document.getElementById('professorSource');
-         if (sourceTag) {
-             const prefetch = prefetchQueue[currentIndex];
-             const source   = prefetch?.prefetchSource;
+            const sourceTag  = document.getElementById('professorSource');
+            const ragScore   = result.ragScore
+                ? ` (score: ${(result.ragScore * 100).toFixed(0)}%)`
+                : '';
 
-             const tagConfig = {
-                 database:    { text: '📖 Banco de dados',        cls: 'from-db'       },
-                 ai:          { text: '🤖 IA + Banco Vetorial',   cls: 'from-ai'       },
-                 fallback:    { text: '📖 Fallback estático',      cls: 'from-db'       },
-                 unavailable: { text: '⚠️ IA indisponível',       cls: 'from-fallback' },
-             };
-
-             const config = tagConfig[source] || { text: '🤖 IA', cls: 'from-ai' };
-             sourceTag.textContent = config.text;
-             sourceTag.className   = `prof-source-tag ${config.cls}`;
-         }
+            const tagConfig = {
+                CACHE_DB:  { text: '📖 Cache — banco',          cls: 'from-db'  },
+                CACHE_RAG: { text: `⚡ Cache — IA + RAG${ragScore}`, cls: 'from-ai' },
+                AI_RAG:    { text: `🤖 IA + Banco Vetorial${ragScore}`, cls: 'from-ai' },
+                AI_ONLY:   { text: '🤖 IA (sem RAG)',            cls: 'from-ai'  },
+                FALLBACK:  { text: '📖 Fallback estático',       cls: 'from-fallback' }
+            };
+            const cfg = tagConfig[result.explanationSource] ||
+                        { text: '🤖 IA', cls: 'from-ai' };
+            if (sourceTag) {
+                sourceTag.textContent = cfg.text;
+                sourceTag.className   = `prof-source-tag ${cfg.cls}`;
+            }
 
             profBox.style.display = 'block';
         } else {
             profBox.style.display = 'none';
         }
 
+        // ── Barra de ações (salvar + anotar) ────────────────────────────
+        renderActionBar(q.id, result.isSaved);
+
     }, 350);
 }
+
+// ── Barra de ações ──────────────────────────────────────────────────────
+function renderActionBar(questionId, isSaved) {
+    let bar = document.getElementById('actionBar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'actionBar';
+        document.getElementById('feedbackArea').appendChild(bar);
+    }
+
+    bar.className = 'action-bar';
+    bar.innerHTML = `
+        <button class="btn-action ${isSaved ? 'saved' : ''}"
+                id="btnSave" onclick="toggleSave(${questionId})">
+            ${isSaved ? '🔖 Salvo' : '📌 Salvar questão'}
+        </button>
+        <button class="btn-action" onclick="toggleNotes(${questionId})">
+            📝 Anotações
+        </button>
+    `;
+
+    // Carrega notas existentes
+    loadNotes(questionId);
+}
+
+// ── Salvar / desfavoritar ───────────────────────────────────────────────
+async function toggleSave(questionId) {
+    const btn    = document.getElementById('btnSave');
+    const isSaved = btn.classList.contains('saved');
+
+    try {
+        if (isSaved) {
+            await fetch(`/api/questions/${questionId}/save`, { method: 'DELETE' });
+            btn.classList.remove('saved');
+            btn.textContent = '📌 Salvar questão';
+            showToast('Questão removida dos favoritos', 'success');
+        } else {
+            await API.post(`/questions/${questionId}/save`, {});
+            btn.classList.add('saved');
+            btn.textContent = '🔖 Salvo';
+            showToast('Questão salva!', 'success');
+        }
+    } catch (e) {
+        showToast('Erro ao salvar questão', 'error');
+    }
+}
+
+// ── Notas ───────────────────────────────────────────────────────────────
+let notesVisible = false;
+let currentNotesQuestionId = null;
+
+async function toggleNotes(questionId) {
+    currentNotesQuestionId = questionId;
+    let notesBox = document.getElementById('notesBox');
+
+    if (notesBox && notesVisible && currentNotesQuestionId === questionId) {
+        notesBox.style.display = 'none';
+        notesVisible = false;
+        return;
+    }
+
+    notesVisible = true;
+    await loadNotes(questionId);
+}
+
+
+async function loadNotes(questionId) {
+    let notesBox = document.getElementById('notesBox');
+    if (!notesBox) {
+        notesBox = document.createElement('div');
+        notesBox.id = 'notesBox';
+        notesBox.className = 'notes-box';
+        document.getElementById('feedbackArea').appendChild(notesBox);
+    }
+
+    try {
+        const notes = await API.get(`/questions/${questionId}/notes`);
+        renderNotesBox(questionId, notes);
+        notesBox.style.display = 'block';
+    } catch (e) {
+        console.error('Erro ao carregar notas:', e);
+    }
+}
+
+function renderNotesBox(questionId, notes) {
+    const box = document.getElementById('notesBox');
+    box.innerHTML = `
+        <div class="notes-header">
+            <span>📝 Minhas Anotações</span>
+            <button class="btn-icon" onclick="document.getElementById('notesBox').style.display='none'">
+                ✕
+            </button>
+        </div>
+
+        <div id="notesList" class="notes-list">
+            ${notes.length ? notes.map(n => renderNoteItem(n)).join('') :
+              '<p style="color:var(--text-muted);font-size:13px">Nenhuma anotação ainda.</p>'}
+        </div>
+
+        <div class="notes-input-row">
+            <textarea id="newNoteInput" class="notes-textarea"
+                      placeholder="Escreva sua anotação sobre esta questão..."
+                      rows="3"></textarea>
+            <button class="btn btn-primary btn-sm"
+                    onclick="addNote(${questionId})">
+                💾 Salvar
+            </button>
+        </div>
+    `;
+}
+
+function renderNoteItem(note) {
+    const date = new Date(note.createdAt).toLocaleDateString('pt-BR');
+    return `
+    <div class="note-item" id="note-${note.id}">
+        <div class="note-text" id="note-text-${note.id}">${escapeHtml(note.note)}</div>
+        <div class="note-meta">
+            <span>${date}</span>
+            <div style="display:flex;gap:6px">
+                <button class="btn-icon-sm" onclick="editNote(${note.id})">✏️</button>
+                <button class="btn-icon-sm" onclick="deleteNote(${note.id})">🗑️</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+async function addNote(questionId) {
+    const input = document.getElementById('newNoteInput');
+    const text  = input?.value?.trim();
+    if (!text) { showToast('Escreva algo antes de salvar', 'error'); return; }
+
+    try {
+        const note = await API.post(`/questions/${questionId}/notes`, { note: text });
+        const list = document.getElementById('notesList');
+        const empty = list.querySelector('p');
+        if (empty) empty.remove();
+        list.insertAdjacentHTML('afterbegin', renderNoteItem(note));
+        input.value = '';
+        showToast('Anotação salva!', 'success');
+    } catch (e) {
+        showToast('Erro ao salvar anotação', 'error');
+    }
+}
+
+function editNote(noteId) {
+    const textEl = document.getElementById(`note-text-${noteId}`);
+    const current = textEl.textContent;
+    textEl.innerHTML = `
+        <textarea id="edit-${noteId}" style="width:100%;padding:6px;border:1px solid var(--border);
+                  border-radius:6px;font-size:13px;resize:vertical"
+                  rows="3">${current}</textarea>
+        <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn btn-primary btn-sm"
+                    onclick="saveEditNote(${noteId})">💾 Salvar</button>
+            <button class="btn btn-secondary btn-sm"
+                    onclick="cancelEditNote(${noteId}, \`${escapeHtml(current)}\`)">
+                Cancelar
+            </button>
+        </div>`;
+}
+
+async function saveEditNote(noteId) {
+    const input = document.getElementById(`edit-${noteId}`);
+    const text  = input?.value?.trim();
+    if (!text) return;
+
+    try {
+        await API.put(`/questions/notes/${noteId}`, { note: text });
+        const textEl = document.getElementById(`note-text-${noteId}`);
+        textEl.innerHTML = escapeHtml(text);
+        showToast('Anotação atualizada!', 'success');
+    } catch (e) {
+        showToast('Erro ao atualizar', 'error');
+    }
+}
+
+function cancelEditNote(noteId, original) {
+    const textEl = document.getElementById(`note-text-${noteId}`);
+    textEl.textContent = original;
+}
+
+async function deleteNote(noteId) {
+    if (!confirm('Excluir esta anotação?')) return;
+    try {
+        await fetch(`/api/questions/notes/${noteId}`, { method: 'DELETE' });
+        document.getElementById(`note-${noteId}`)?.remove();
+        showToast('Anotação excluída', 'success');
+    } catch (e) {
+        showToast('Erro ao excluir', 'error');
+    }
+}
+
 
 // ── Próxima questão ─────────────────────────────────────────────────────
 function nextQuestion() {
