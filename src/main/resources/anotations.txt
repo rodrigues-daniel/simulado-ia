@@ -1,6 +1,20 @@
 
-
 Proximas mudancas:
- 1 - para as respostas com dicas do professor mostrar um campo para salvar a dica ligando a questao para consultas posteriores e permita salvar anotacoes
- 2 - verificar se as respostas trazidas do banco vetoral estao sendo salvas na base normmal para consultas mais rapidas posteriomente
- 3 -  no painel de questoes geradas por ia ter opcao para gerar questoes por ia e antes disso saber porque nao estao aparecendo no painel administrativo atualmente
+
+ 1 - Simulador de Risco Cebraspe nao encontra as questoes e mostra: "Questão não encontrada." revise o codigo, identifique os erros e corrija
+
+
+
+
+
+ Em andamento:
+ 1 - no modulo de estudo reverso informar quando a questao foi gerada por IA ou se veio da base alimentada manualmente.
+ 2 - no simulador de risco cebraspe dar opcao de selecionar entre questoes  salvas na base ou questoes geradas por ia.
+ 3 - para as respostas com dicas do professor mostrar um campo para salvar ligando a questao para consultas posteriores e permita salvar anotacoes na questao.
+ 4 -   paras as respostas da ia que utilizam vectordb salvas salvar resultado em cache ou na base normmal para consultas deixando as respostas de uma mesma questao mais rapida.
+ 5 -  no painel de questoes geradas por ia ter opcao para gerar questoes por ia em quantidade desejada para cada topico e mostrar no painel administrativo para questoes geradas por ia
+
+ se necessario faca pausas para nao perder o contexto e deixar o resultado mais exato
+
+
+
