@@ -8,7 +8,6 @@ let questionStartTime = null;
 document.addEventListener('DOMContentLoaded', async () => {
     await loadContestsIntoSelect('contestSelect');
 
-    // Carrega tópico por URL param se existir
     const params = new URLSearchParams(location.search);
     if (params.get('topicId')) {
         document.getElementById('topicSelect').dataset.preload = params.get('topicId');
@@ -36,9 +35,8 @@ async function startStudy() {
     if (!topicId) { showToast('Selecione um tópico', 'error'); return; }
 
     try {
-        // Cria sessão de estudo
-        sessionId = await API.post('/study/sessions', { topicId: parseInt(topicId) })
-            .then(s => s.id);
+        const session = await API.post('/study/sessions', { topicId: parseInt(topicId) });
+        sessionId = session.id;
         questions = await API.get(`/questions/topic/${topicId}`);
 
         if (!questions.length) {
@@ -49,10 +47,10 @@ async function startStudy() {
         currentIndex = 0;
         sessionStats = { correct: 0, wrong: 0, skipped: 0 };
 
-        document.getElementById('topicSelector').style.display = 'none';
-        document.getElementById('questionArea').style.display = 'block';
-        document.getElementById('feedbackArea').style.display = 'none';
-        document.getElementById('sessionResult').style.display = 'none';
+        document.getElementById('topicSelector').style.display  = 'none';
+        document.getElementById('questionArea').style.display   = 'block';
+        document.getElementById('feedbackArea').style.display   = 'none';
+        document.getElementById('sessionResult').style.display  = 'none';
 
         renderQuestion();
     } catch (e) {
@@ -79,13 +77,19 @@ function renderQuestion() {
     }
 
     const q = questions[currentIndex];
-    document.getElementById('currentQ').textContent = currentIndex + 1;
-    document.getElementById('totalQ').textContent = questions.length;
-    document.getElementById('questionStatement').textContent = q.statement;
-    document.getElementById('feedbackArea').style.display = 'none';
 
-    // Detecta palavras-armadilha na questão
-    const traps = q.trapKeywords || [];
+    document.getElementById('currentQ').textContent    = currentIndex + 1;
+    document.getElementById('totalQ').textContent      = questions.length;
+    document.getElementById('questionStatement').textContent = q.statement;
+    document.getElementById('feedbackArea').style.display   = 'none';
+    document.getElementById('processingBox').style.display  = 'none';
+
+    // Habilita botões
+    document.querySelectorAll('.btn-certo, .btn-errado')
+            .forEach(b => b.disabled = false);
+
+    // Detecta palavras-armadilha
+    const traps    = q.trapKeywords || [];
     const trapAlert = document.getElementById('trapAlert');
     if (traps.length) {
         document.getElementById('trapWords').textContent = traps.join(', ');
@@ -95,20 +99,33 @@ function renderQuestion() {
     }
 
     const diffMap = { FACIL: 'badge-success', MEDIO: 'badge-warning', DIFICIL: 'badge-danger' };
-    document.getElementById('difficultyBadge').className = `badge ${diffMap[q.difficulty] || 'badge-info'}`;
-    document.getElementById('difficultyBadge').textContent = q.difficulty || '';
+    const diffBadge = document.getElementById('difficultyBadge');
+    diffBadge.className   = `badge ${diffMap[q.difficulty] || 'badge-info'}`;
+    diffBadge.textContent = q.difficulty || '';
 
     questionStartTime = Date.now();
 }
 
 async function answer(userAnswer) {
-    const q = questions[currentIndex];
-    const timeSpent = Date.now() - questionStartTime;
+    const q         = questions[currentIndex];
+    const timeSpent = Date.now() - (questionStartTime || Date.now());
+
+    if (!sessionId) {
+        showToast('Sessão inválida. Reinicie o estudo.', 'error');
+        return;
+    }
+
+    // ── Desabilita botões imediatamente ────────────────────────────────
+    document.querySelectorAll('.btn-certo, .btn-errado')
+            .forEach(b => b.disabled = true);
+
+    // ── Mostra indicador de processamento ──────────────────────────────
+    showProcessing(userAnswer);
 
     try {
         const result = await API.post(`/questions/${q.id}/answer`, {
-            sessionId,
-            answer: userAnswer,
+            sessionId:   sessionId,
+            answer:      userAnswer,
             timeSpentMs: timeSpent
         });
 
@@ -119,81 +136,155 @@ async function answer(userAnswer) {
         }
 
         renderFeedback(result, userAnswer);
+
     } catch (e) {
-        showToast('Erro ao registrar resposta', 'error');
+        console.error('[answer] erro:', e);
+        hideProcessing();
+        document.querySelectorAll('.btn-certo, .btn-errado')
+                .forEach(b => b.disabled = false);
+        showToast('Erro ao registrar resposta. Tente novamente.', 'error');
     }
 }
 
+// ── Indicador de processamento ──────────────────────────────────────────
+
+function showProcessing(userAnswer) {
+    const box = document.getElementById('processingBox');
+
+    // Mensagem varia conforme a resposta para dar feedback imediato
+    const isCorrectGuess = userAnswer;
+    const emoji   = isCorrectGuess ? '✅' : '❌';
+    const label   = isCorrectGuess ? 'CERTO' : 'ERRADO';
+
+    document.getElementById('processingAnswer').textContent  = `${emoji} Você marcou: ${label}`;
+    document.getElementById('processingStatus').textContent  = 'Registrando resposta...';
+    document.getElementById('processingBar').style.width     = '30%';
+    document.getElementById('processingSource').textContent  = '';
+
+    box.style.display = 'block';
+
+    // Anima a barra e atualiza o status em etapas
+    setTimeout(() => {
+        document.getElementById('processingStatus').textContent = 'Verificando gabarito...';
+        document.getElementById('processingBar').style.width    = '55%';
+    }, 300);
+
+    setTimeout(() => {
+        document.getElementById('processingStatus').textContent = isCorrectGuess
+            ? 'Buscando próxima questão...'
+            : '🤖 Consultando professor virtual via IA...';
+        document.getElementById('processingSource').textContent = isCorrectGuess
+            ? ''
+            : 'O modelo llama3.2:3b está gerando a explicação. Pode levar alguns segundos.';
+        document.getElementById('processingBar').style.width = '80%';
+    }, 700);
+}
+
+function hideProcessing() {
+    document.getElementById('processingBox').style.display = 'none';
+    document.getElementById('processingBar').style.width   = '0%';
+}
+
+// ── Feedback pós-resposta ───────────────────────────────────────────────
+
 function renderFeedback(result, userAnswer) {
-    document.getElementById('questionArea').style.display = 'none';
-    document.getElementById('feedbackArea').style.display = 'block';
+    // Completa a barra e esconde o processing
+    document.getElementById('processingBar').style.width = '100%';
 
-    const resultEl = document.getElementById('answerResult');
-    if (result.isCorrect) {
-        resultEl.innerHTML = `<div style="text-align:center;padding:20px;">
-            <div style="font-size:48px;">✅</div>
-            <div style="font-size:22px;font-weight:700;color:var(--success);margin-top:8px;">CORRETO!</div>
-            <div style="color:var(--text-muted);margin-top:6px;">${result.explanation || ''}</div>
-        </div>`;
-    } else {
-        resultEl.innerHTML = `<div style="text-align:center;padding:20px;">
-            <div style="font-size:48px;">❌</div>
-            <div style="font-size:22px;font-weight:700;color:var(--danger);margin-top:8px;">INCORRETO!</div>
-            <div style="color:var(--text-muted);margin-top:6px;">
-                Resposta correta: <strong>${result.correctAnswer ? 'CERTO' : 'ERRADO'}</strong>
-            </div>
-        </div>`;
+    setTimeout(() => {
+        hideProcessing();
 
-        // ── ESTUDO INVERSO: exibe parágrafo específico da lei ──────────
-        if (result.lawParagraph) {
-            document.getElementById('lawParagraphBox').style.display = 'block';
-            document.getElementById('lawReference').textContent = result.lawReference || 'Base Legal';
-            document.getElementById('lawParagraph').textContent = result.lawParagraph;
+        document.getElementById('questionArea').style.display = 'none';
+        document.getElementById('feedbackArea').style.display = 'block';
+
+        const resultEl = document.getElementById('answerResult');
+
+        if (result.isCorrect) {
+            resultEl.innerHTML = `
+                <div class="answer-correct">
+                    <div class="answer-big-icon">✅</div>
+                    <div class="answer-title correct">CORRETO!</div>
+                    <div class="answer-subtitle">${result.explanation || 'Muito bem! Continue assim.'}</div>
+                </div>`;
         } else {
-            document.getElementById('lawParagraphBox').style.display = 'none';
+            resultEl.innerHTML = `
+                <div class="answer-wrong">
+                    <div class="answer-big-icon">❌</div>
+                    <div class="answer-title wrong">INCORRETO!</div>
+                    <div class="answer-subtitle">
+                        Resposta correta: <strong>${result.correctAnswer ? 'CERTO' : 'ERRADO'}</strong>
+                    </div>
+                </div>`;
         }
 
-        // ── Campo do Professor ─────────────────────────────────────────
-        if (result.professorExplanation) {
-            document.getElementById('professorBox').style.display = 'block';
+        // Parágrafo da lei — Estudo Inverso
+        const lawBox = document.getElementById('lawParagraphBox');
+        if (!result.isCorrect && result.lawParagraph) {
+            document.getElementById('lawReference').textContent = result.lawReference || 'Base Legal';
+            document.getElementById('lawParagraph').textContent = result.lawParagraph;
+            lawBox.style.display = 'block';
+        } else {
+            lawBox.style.display = 'none';
+        }
+
+        // Campo do professor
+        const profBox = document.getElementById('professorBox');
+        if (!result.isCorrect && result.professorExplanation) {
             document.getElementById('professorExplanation').textContent = result.professorExplanation;
             document.getElementById('professorTip').textContent = result.professorTip
                 ? `💡 ${result.professorTip}` : '';
+
+            // Indica se veio da IA ou do banco
+            const sourceTag = document.getElementById('professorSource');
+            if (sourceTag) {
+                const fromAI = result.professorExplanation !== result.explanation;
+                sourceTag.textContent  = fromAI ? '🤖 Gerado por IA' : '📖 Explicação do banco';
+                sourceTag.className    = `prof-source-tag ${fromAI ? 'from-ai' : 'from-db'}`;
+            }
+
+            profBox.style.display = 'block';
         } else {
-            document.getElementById('professorBox').style.display = 'none';
+            profBox.style.display = 'none';
         }
-    }
+
+    }, 400);
 }
 
 function nextQuestion() {
     currentIndex++;
-    document.getElementById('feedbackArea').style.display = 'none';
-    document.getElementById('questionArea').style.display = 'block';
+    document.getElementById('feedbackArea').style.display  = 'none';
+    document.getElementById('questionArea').style.display  = 'block';
     renderQuestion();
 }
 
 function showSessionResult() {
-    document.getElementById('questionArea').style.display = 'none';
-    document.getElementById('feedbackArea').style.display = 'none';
+    document.getElementById('questionArea').style.display  = 'none';
+    document.getElementById('feedbackArea').style.display  = 'none';
     document.getElementById('sessionResult').style.display = 'block';
 
     const total = sessionStats.correct + sessionStats.wrong + sessionStats.skipped;
-    const acc = total > 0 ? ((sessionStats.correct / total) * 100).toFixed(1) : 0;
+    const acc   = total > 0 ? ((sessionStats.correct / total) * 100).toFixed(1) : 0;
 
     document.getElementById('sessionStats').innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:center;">
-            <div class="score-card"><span class="score-label">Corretas</span>
-                <span class="score-value green">${sessionStats.correct}</span></div>
-            <div class="score-card"><span class="score-label">Erradas</span>
-                <span class="score-value red">${sessionStats.wrong}</span></div>
-            <div class="score-card highlight"><span class="score-label">Aproveitamento</span>
-                <span class="score-value">${acc}%</span></div>
+            <div class="score-card">
+                <span class="score-label">Corretas</span>
+                <span class="score-value green">${sessionStats.correct}</span>
+            </div>
+            <div class="score-card">
+                <span class="score-label">Erradas</span>
+                <span class="score-value red">${sessionStats.wrong}</span>
+            </div>
+            <div class="score-card highlight">
+                <span class="score-label">Aproveitamento</span>
+                <span class="score-value">${acc}%</span>
+            </div>
         </div>`;
 }
 
 function restartStudy() {
-    currentIndex = 0;
-    sessionStats = { correct: 0, wrong: 0, skipped: 0 };
-    document.getElementById('sessionResult').style.display = 'none';
-    document.getElementById('topicSelector').style.display = 'block';
+    currentIndex  = 0;
+    sessionStats  = { correct: 0, wrong: 0, skipped: 0 };
+    document.getElementById('sessionResult').style.display  = 'none';
+    document.getElementById('topicSelector').style.display  = 'block';
 }
