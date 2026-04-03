@@ -38,13 +38,13 @@ public class AiController {
 
     // Pré-gera explicação para a questão sem registrar resposta
     // Chamado em background pelo prefetch do frontend
-    @PostMapping("/questions/{questionId}/prefetch-explanation")
+    // Adicione no QuestionController.java
+    @PostMapping("/{questionId}/prefetch-explanation")
     public ResponseEntity<Map<String, Object>> prefetchExplanation(
             @PathVariable Long questionId) {
 
         return questionRepository.findById(questionId).map(question -> {
             try {
-                // Se já tem explicação estática, retorna ela direto sem chamar IA
                 if (question.explanation() != null
                         && question.explanation().trim().length() > 10) {
                     return ResponseEntity.ok(Map.<String, Object>of(
@@ -53,8 +53,6 @@ public class AiController {
                     ));
                 }
 
-                // Gera via IA — assume que a questão é ERRADA para pré-gerar
-                // (só faz sentido pré-carregar explicação de erro)
                 String explanation = professorExplanationService
                         .generateExplanation(question, !question.correctAnswer());
 
@@ -68,7 +66,7 @@ public class AiController {
                         "explanation", question.explanation() != null
                                 ? question.explanation()
                                 : "Revise o parágrafo indicado.",
-                        "source",      "fallback"
+                        "source", "fallback"
                 ));
             }
         }).orElse(ResponseEntity.notFound().build());
