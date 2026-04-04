@@ -139,48 +139,132 @@
 
         <!-- Tab: RAG -->
         <section id="tab-rag" class="tab-content section-card" style="display:none">
-            <h2>Ingestão de Material para RAG</h2>
+            <h2>📄 Ingestão de Material para RAG</h2>
 
-            <div class="rag-options">
-                <!-- Upload PDF -->
-                <div class="rag-option">
-                    <h3>📄 Upload de PDF</h3>
-                    <input type="file" id="pdfFile" accept=".pdf">
-                    <div class="form-row">
-                        <input type="number" id="ragTopicId" placeholder="ID do Tópico (opcional)">
-                        <input type="number" id="ragContestId" placeholder="ID do Concurso (opcional)">
+            <!-- Configuração de chunking -->
+            <div class="rag-config-bar" id="ragConfigBar">
+                <div class="rag-config-item">
+                    <label>⚙️ Tamanho do Chunk</label>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <input type="number" id="chunkSizeKb" min="10" max="500"
+                               value="50" style="width:80px">
+                        <span style="font-size:13px;color:var(--text-muted)">KB</span>
                     </div>
-                    <button class="btn btn-primary" onclick="uploadPdf()">
-                        📤 Enviar PDF
+                </div>
+                <div class="rag-config-item">
+                    <label>📊 Estimativa de tokens</label>
+                    <span id="tokenEstimate" class="rag-config-info">~12.500 tokens/chunk</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="saveRagConfig()">
+                    💾 Salvar como padrão
+                </button>
+            </div>
+
+            <div class="rag-layout">
+
+                <!-- Área de Upload -->
+                <div class="rag-upload-section">
+                    <h3>📤 Upload de Arquivos</h3>
+
+                    <!-- Drag & Drop -->
+                    <div id="dropZone" class="drop-zone"
+                         ondragover="onDragOver(event)"
+                         ondragleave="onDragLeave(event)"
+                         ondrop="onDrop(event)"
+                         onclick="document.getElementById('ragFiles').click()">
+                        <div class="drop-zone-icon">📁</div>
+                        <div class="drop-zone-title">
+                            Arraste arquivos aqui ou clique para selecionar
+                        </div>
+                        <div class="drop-zone-subtitle">
+                            Até 5 arquivos • PDF, TXT, CSV • Máx. 50MB cada
+                        </div>
+                        <input type="file" id="ragFiles" multiple hidden
+                               accept=".pdf,.txt,.csv"
+                               onchange="onFilesSelected(event)">
+                    </div>
+
+                    <!-- Preview dos arquivos selecionados -->
+                    <div id="filesPreview" class="files-preview" style="display:none">
+                        <div class="files-preview-header">
+                            <span id="filesCount">0 arquivo(s) selecionado(s)</span>
+                            <button class="btn-icon" onclick="clearFiles()">🗑️ Limpar</button>
+                        </div>
+                        <div id="filesList" class="files-list"></div>
+                    </div>
+
+                    <!-- Parâmetros opcionais -->
+                    <div class="rag-params">
+                        <div class="form-group">
+                            <label>Tópico (opcional)</label>
+                            <select id="ragTopicId">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Concurso (opcional)</label>
+                            <select id="ragContestId" onchange="loadRagTopics()">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="btnUpload"
+                            onclick="uploadFiles()" disabled>
+                        🚀 Iniciar Upload e Processamento
                     </button>
+
+                    <div id="uploadResult" class="result-box" style="margin-top:12px"></div>
                 </div>
 
-                <!-- Ingestão por texto JSON -->
-                <div class="rag-option">
+                <!-- Ingestão por texto -->
+                <div class="rag-text-section">
                     <h3>📝 Ingestão por Texto</h3>
                     <div class="example-payload">
                         <code>{
-  "name": "Lei 8.112/1990 - Capítulo I",
-  "content": "Art. 1º...",
-  "topicId": 1,
-  "contestId": 1
-}</code>
+                            "name": "Lei 8.112 - Cap. I",
+                            "content": "Art. 1º...",
+                            "topicId": 1,
+                            "contestId": 1,
+                            "chunkSizeKb": 50
+                            }</code>
                     </div>
-                    <textarea id="ragTextPayload" class="json-editor"
-                        placeholder="Cole o JSON com name e content..."></textarea>
-                    <button class="btn btn-primary" onclick="ingestText()">
+                    <textarea id="ragTextPayload" class="json-editor" rows="8"
+                              placeholder="Cole o JSON aqui..."></textarea>
+                    <button class="btn btn-primary" onclick="ingestText()"
+                            style="margin-top:8px">
                         📤 Ingerir Texto
                     </button>
+                    <div id="ragTextResult" class="result-box" style="margin-top:10px"></div>
                 </div>
             </div>
 
-            <div id="ragResult" class="result-box"></div>
+            <!-- Fila de processamento -->
+            <div style="margin-top:28px;border-top:2px solid var(--border);padding-top:20px">
+                <div class="section-header">
+                    <h3>⚙️ Fila de Processamento</h3>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <div id="queueStats" class="queue-stats-inline"></div>
+                        <button class="btn btn-secondary btn-sm" onclick="loadQueueStatus()">
+                            🔄 Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div id="queueList" class="queue-list">
+                    <p style="color:var(--text-muted)">Nenhum item na fila.</p>
+                </div>
+            </div>
 
-            <h3>📚 Documentos Ingeridos</h3>
-            <div id="ragDocumentsList" class="documents-list"></div>
-            <button class="btn btn-secondary btn-sm" onclick="loadRagDocuments()">
-                🔄 Atualizar Lista
-            </button>
+            <!-- Documentos ingeridos -->
+            <div style="margin-top:24px;border-top:2px solid var(--border);padding-top:20px">
+                <div class="section-header">
+                    <h3>📚 Documentos Ingeridos</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="loadRagDocuments()">
+                        🔄 Atualizar
+                    </button>
+                </div>
+                <div id="ragDocumentsList"></div>
+            </div>
         </section>
 
         <!-- Tab: Visão de Tópicos -->
