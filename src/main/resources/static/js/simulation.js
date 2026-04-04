@@ -23,7 +23,7 @@ async function startSimulation() {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Carregando...'; }
 
     try {
-        // ── 1. Busca questões conforme fonte ────────────────────────────
+        // 1. Busca questões conforme fonte
         const questions = await API.get(
             `/questions/for-simulation` +
             `?contestId=${contestId}` +
@@ -31,39 +31,33 @@ async function startSimulation() {
             `&limit=${questionCount}`
         );
 
-        if (!questions || !questions.length) {
-            const msg = {
-                IA:     'Nenhuma questão gerada por IA aprovada disponível. ' +
-                        'Gere e aprove questões no painel Admin → Gestão IA.',
-                MANUAL: 'Nenhuma questão manual disponível para este concurso.',
-                ALL:    'Nenhuma questão disponível. Importe questões no Admin.'
-            }[source] || 'Nenhuma questão disponível.';
-            showToast(msg, 'error');
+        if (!questions?.length) {
+            showToast('Nenhuma questão disponível para os filtros selecionados.', 'error');
             return;
         }
 
-        // ── 2. Cria o simulado no backend ───────────────────────────────
+        // 2. Cria o simulado enviando os IDs das questões escolhidas
         const sim = await API.post('/simulations', {
             contestId:     parseInt(contestId),
             name:          `Simulado ${sourceLabel(source)} — ` +
                            new Date().toLocaleDateString('pt-BR'),
             questionCount: questions.length,
-            timeLimitMin
+            timeLimitMin,
+            questionIds:   questions.map(q => q.id)  // ← envia IDs para persistir
         });
 
-        // ── 3. Guarda as questões COMPLETAS — sem perder dados ──────────
+        // 3. Guarda questões COMPLETAS localmente
         simulationId  = sim.id;
-        simQuestions  = questions;   // Question[] completo
+        simQuestions  = questions;  // Question[] completo
         simCurrentIdx = 0;
         simAnswers    = {};
 
-        // ── 4. Monta UI ─────────────────────────────────────────────────
         hide('setupArea');
         document.getElementById('simulationArea').style.display = 'block';
 
         renderSourceBadge(source, questions.length);
         buildQuestionsNav();
-        renderSimQuestion(0);        // usa dados locais, sem fetch extra
+        renderSimQuestion(0);
         startTimer(timeLimitMin * 60);
 
     } catch (e) {
@@ -220,28 +214,35 @@ async function finishSimulation() {
     clearInterval(timerInterval);
     if (!simulationId) return;
 
-    // ── CORREÇÃO: monta mapa questionId → resposta corretamente ─────────
-    // simQuestions[i].id é o ID da questão (campo do record Question)
-    // simAnswers[i]   é a resposta do usuário para o índice i
+    // Monta mapa: questionId (Long) → resposta (Boolean)
+    // simQuestions[i].id = ID da questão
+    // simAnswers[i]      = true | false | undefined (em branco)
     const answersMap = {};
     simQuestions.forEach((q, i) => {
-        const questionId = q.id; // campo correto do record Question
-        const answer     = simAnswers[i];
-        if (answer !== undefined && answer !== null) {
-            answersMap[questionId] = answer;
+        const answer = simAnswers[i];
+        // Só envia respostas efetivas — em branco não entra no mapa
+        if (answer === true || answer === false) {
+            answersMap[q.id] = answer;
         }
-        // null/undefined = em branco, não entra no mapa
     });
+
+    // Log de diagnóstico
+    console.log('[finishSimulation] simulationId:', simulationId);
+    console.log('[finishSimulation] total questões:', simQuestions.length);
+    console.log('[finishSimulation] respostas enviadas:', Object.keys(answersMap).length);
 
     try {
         const result = await API.post(
             `/simulations/${simulationId}/finish`,
             answersMap
         );
+
+        console.log('[finishSimulation] resultado:', result);
         renderResult(result);
+
     } catch (e) {
-        console.error('[finishSimulation]', e);
-        showToast('Erro ao finalizar simulado', 'error');
+        console.error('[finishSimulation] erro:', e);
+        showToast('Erro ao calcular resultado. Verifique o log do servidor.', 'error');
     }
 }
 
