@@ -433,13 +433,26 @@ function renderTopicRow(topic) {
                 ${qCount}
                 <span>questões</span>
             </div>
-            ${qCount > 0 ? `
-            <button class="btn btn-secondary btn-sm"
-                    style="margin-top:4px;font-size:11px;padding:3px 8px"
-                    onclick="openQuestionsModal(${topic.id}, '${escapeHtml(topic.name)}',
-                             '${escapeHtml(topic.discipline || '')}', ${ratePct})">
-                Ver
-            </button>` : `<span style="font-size:11px;color:var(--text-muted)">sem questões</span>`}
+           // Substitua a linha do botão "Ver" no renderTopicRow
+           ${qCount > 0 ? `
+           <div style="display:flex;gap:4px;flex-direction:column;align-items:center">
+               <button class="btn btn-secondary btn-sm"
+                       style="font-size:11px;padding:3px 8px"
+                       onclick="openQuestionsModal(${topic.id}, '${escapeHtml(topic.name)}',
+                                '${escapeHtml(topic.discipline||'')}', ${ratePct})">
+                   🔍 Ver
+               </button>
+               <button class="btn btn-sm"
+                       style="font-size:11px;padding:3px 8px;background:#7c3aed;color:#fff"
+                       onclick="generateForTopic(${topic.id}, '${escapeHtml(topic.name)}')">
+                   🤖 Gerar IA
+               </button>
+           </div>` : `
+           <button class="btn btn-sm"
+                   style="font-size:11px;padding:3px 8px;background:#7c3aed;color:#fff"
+                   onclick="generateForTopic(${topic.id}, '${escapeHtml(topic.name)}')">
+               🤖 Gerar IA
+           </button>`}
         </div>
 
         <div class="incidence-cell" style="text-align:center">

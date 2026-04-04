@@ -22,16 +22,13 @@ public class SimulationService {
 
     @Transactional
     public Simulation createSimulation(Long contestId, String name,
-            Integer questionCount, Integer timeLimitMin) {
-        var simulation = new Simulation(null, contestId, name, questionCount,
-                timeLimitMin, "PENDING", null, null, null);
-        var saved = simulationRepository.save(simulation);
-
-        // Seleciona questões priorizando tópicos Pareto
-        var questions = questionRepository.findForSimulation(contestId, questionCount);
-        simulationRepository.saveSimulationQuestions(saved.id(), questions);
-
-        return saved;
+                                       Integer questionCount, Integer timeLimitMin) {
+        var simulation = new Simulation(
+                null, contestId, name, questionCount,
+                timeLimitMin, "PENDING", null, null, null
+        );
+        // Apenas cria o registro — questões já foram buscadas pelo frontend
+        return simulationRepository.save(simulation);
     }
 
     @Transactional
