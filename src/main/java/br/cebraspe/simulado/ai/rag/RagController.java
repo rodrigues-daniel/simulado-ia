@@ -1,5 +1,9 @@
 package br.cebraspe.simulado.ai.rag;
 
+import br.cebraspe.simulado.ai.rag.cleaning.CleaningCacheRepository;
+import br.cebraspe.simulado.ai.rag.cleaning.CleaningStrategy;
+import br.cebraspe.simulado.ai.rag.cleaning.DataCleaningService;
+import br.cebraspe.simulado.ai.rag.cleaning.TextCleaningResult;
 import br.cebraspe.simulado.config.SystemConfigRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,17 +20,21 @@ public class RagController {
     private final RagRepository          ragRepository;
     private final RagQueueRepository     queueRepository;
     private final SystemConfigRepository configRepository;
+    private final DataCleaningService cleaningService;
+    private final CleaningCacheRepository cleaningCache;
 
     public RagController(RagIngestionService ingestionService,
                          RagSearchService searchService,
                          RagRepository ragRepository,
                          RagQueueRepository queueRepository,
-                         SystemConfigRepository configRepository) {
+                         SystemConfigRepository configRepository, DataCleaningService cleaningService, CleaningCacheRepository cleaningCache) {
         this.ingestionService = ingestionService;
         this.searchService    = searchService;
         this.ragRepository    = ragRepository;
         this.queueRepository  = queueRepository;
         this.configRepository = configRepository;
+        this.cleaningService = cleaningService;
+        this.cleaningCache = cleaningCache;
     }
 
     // ── Upload múltiplo (até 5 arquivos) ────────────────────────────────
@@ -141,5 +149,77 @@ public class RagController {
             String name, String content,
             Long topicId, Long contestId,
             Integer chunkSizeKb
+    ) {}
+
+    @PostMapping("/preview-cleaning")
+    public ResponseEntity<TextCleaningResult> previewCleaning(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            ingestionService.validateFile(file);
+            String content;
+            if (file.getOriginalFilename() != null
+                    && file.getOriginalFilename().endsWith(".pdf")) {
+                // Para PDF, extrai só as primeiras 3 páginas como preview
+                content = new String(file.getBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8);
+            } else {
+                content = new String(file.getBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8);
+            }
+            // Limita preview a 5000 chars
+            String sample = content.length() > 5000
+                    ? content.substring(0, 5000) : content;
+            return ResponseEntity.ok(
+                    cleaningService.clean(sample, file.getOriginalFilename()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // ── Aplica estratégia específica de limpeza ──────────────────────────
+    @PostMapping("/apply-cleaning")
+    public ResponseEntity<TextCleaningResult> applyCleaning(
+            @RequestBody ApplyCleaningRequest req) {
+        var strategy = CleaningStrategy.valueOf(req.strategy());
+        return ResponseEntity.ok(
+                cleaningService.cleanWithStrategy(
+                        req.content(), req.fileName(), strategy));
+    }
+
+    // ── Busca conteúdo aguardando revisão manual ─────────────────────────
+    @GetMapping("/documents/{documentId}/cleaning")
+    public ResponseEntity<?> getCleaningResult(@PathVariable Long documentId) {
+        return cleaningCache.findByDocumentId(documentId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // ── Salva edição manual e prossegue com vetorização ──────────────────
+    @PostMapping("/documents/{documentId}/approve-cleaning")
+    public ResponseEntity<Map<String, Object>> approveCleaning(
+            @PathVariable Long documentId,
+            @RequestBody ApproveCleaning req) {
+        try {
+            int chunkKb = configRepository.getInt("rag.chunk.size.kb", 50);
+            ingestionService.processAfterManualReview(
+                    documentId, req.editedContent(),
+                    req.chunkSizeKb() != null ? req.chunkSizeKb() : chunkKb,
+                    req.topicId());
+            return ResponseEntity.ok(Map.of(
+                    "status",  "PROCESSING",
+                    "message", "Conteúdo aprovado. Vetorização iniciada."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    public record ApplyCleaningRequest(
+            String content, String fileName, String strategy
+    ) {}
+
+    public record ApproveCleaning(
+            String editedContent, Integer chunkSizeKb, Long topicId
     ) {}
 }
