@@ -58,9 +58,9 @@ function switchTab(tabName) {
     if (section) section.style.display = 'block';
 
     // Inicializa cada aba na primeira abertura
-    if (tabName === 'rag')         loadRagDocuments();
-    if (tabName === 'topics-view') initTopicsView();   // ← adicione esta linha
-    if (tabName === 'ia-questions') initIAAdmin();   // ← adicione
+  if (tabName === 'rag')          initRagTab();        // ← substitui loadRagDocuments()
+  if (tabName === 'topics-view')  initTopicsView();
+  if (tabName === 'ia-questions') initIAAdmin();
 }
 
 function switchTabById(tabName) {

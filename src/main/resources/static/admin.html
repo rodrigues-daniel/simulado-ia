@@ -442,6 +442,17 @@
 
     <script src="/js/api.js"></script>
     <script src="/js/admin.js"></script>
+    <script src="/js/ia-admin.js"></script>
+    <script src="/js/rag-upload.js"></script>
+    <script>
+        // Atualiza estimativa de tokens ao digitar
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('chunkSizeKb');
+            if (input) {
+                input.addEventListener('input', updateTokenEstimate);
+            }
+        });
+    </script>
 </body>
 
 </html>
