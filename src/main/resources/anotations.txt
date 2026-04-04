@@ -1,6 +1,23 @@
 
-
 Proximas mudancas:
- 1 - para as respostas com dicas do professor mostrar um campo para salvar a dica ligando a questao para consultas posteriores e permita salvar anotacoes
- 2 - verificar se as respostas trazidas do banco vetoral estao sendo salvas na base normmal para consultas mais rapidas posteriomente
- 3 -  no painel de questoes geradas por ia ter opcao para gerar questoes por ia e antes disso saber porque nao estao aparecendo no painel administrativo atualmente
+
+  1 - Corrigir resultado do simulado que nao esta calculo e mostrando os resultados
+  2 - manter historico dos resultados para acompanhamento
+  3 - Salvar os esqueletos gerados no estruturador de Discursiva
+ 4 - painel administrativo tela de gestao IA as questoes geradas por IA nao aparecem, adicionar funcioonalidade para gerar questoes nessa tela
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  -----------------------------------\
+  1 - Análise de Prioridades (Pareto 80/20) aparentemente nao esta calulando corrigir como ultima prioridade

@@ -50,13 +50,20 @@ public class SimulationRepository {
 
     public void saveSimulationQuestions(Long simulationId, List<Question> questions) {
         for (int i = 0; i < questions.size(); i++) {
+            Long questionId = questions.get(i).id(); // ← campo correto do record
+            if (questionId == null) {
+                throw new RuntimeException(
+                        "Questão sem ID na posição " + i + " ao salvar simulado");
+            }
             jdbcClient.sql("""
-                    INSERT INTO simulation_questions (simulation_id, question_id, order_number)
-                    VALUES (:simId, :questionId, :order)
-                    """)
-                    .param("simId", simulationId)
-                    .param("questionId", questions.get(i).id())
-                    .param("order", i + 1)
+                INSERT INTO simulation_questions
+                    (simulation_id, question_id, order_number)
+                VALUES (:simId, :questionId, :order)
+                ON CONFLICT DO NOTHING
+                """)
+                    .param("simId",      simulationId)
+                    .param("questionId", questionId)
+                    .param("order",      i + 1)
                     .update();
         }
     }
