@@ -183,6 +183,9 @@
                                accept=".pdf,.txt,.csv"
                                onchange="onFilesSelected(event)">
                     </div>
+                    <!-- Preview de limpeza -->
+                    <div id="cleaningPreviewBox" class="cleaning-preview-box" style="display:none"></div>
+
 
                     <!-- Preview dos arquivos selecionados -->
                     <div id="filesPreview" class="files-preview" style="display:none">
@@ -453,6 +456,18 @@
             }
         });
     </script>
+
+    <!-- Modal de Revisão Manual de Limpeza -->
+    <div id="cleaningEditorModal" class="modal-overlay"
+         onclick="closeCleaningEditorOutside(event)">
+        <div class="modal-box" style="max-width:860px">
+            <div class="modal-header" style="background:#d97706">
+                <h3 id="cleaningEditorTitle">✏️ Revisão Manual de Limpeza</h3>
+                <button class="modal-close" onclick="closeCleaningEditor()">✕</button>
+            </div>
+            <div class="modal-body" id="cleaningEditorBody" style="padding:0"></div>
+        </div>
+    </div>
 </body>
 
 </html>
