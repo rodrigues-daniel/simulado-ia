@@ -1,6 +1,6 @@
 package br.cebraspe.simulado.ai.rag;
 
-import br.com.cebraspe.study.ai.embedding.EmbeddingService;
+import br.cebraspe.simulado.ai.embedding.EmbeddingService;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;

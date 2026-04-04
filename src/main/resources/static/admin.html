@@ -51,6 +51,9 @@
             <button class="tab" onclick="switchTab('ia-questions')">
                 🤖 Gestão IA
             </button>
+            <button class="tab" onclick="switchTab('rag-knowledge')">
+                🧠 Base de Conhecimento IA
+            </button>
         </div>
 
         <!-- Tab: Concursos -->
@@ -411,6 +414,191 @@
             </div>
         </section>
 
+        <!-- Tab: Base de Conhecimento IA -->
+        <section id="tab-rag-knowledge" class="tab-content section-card"
+                 style="display:none">
+            <h2>🧠 Base de Conhecimento — Pipeline RAG</h2>
+            <p class="hint">
+                Gerencie os conhecimentos que a IA usa para gerar explicações e questões.
+                Quanto mais rico, mais precisa a IA.
+            </p>
+
+            <!-- Stats do pipeline -->
+            <div id="knowledgeStats" class="knowledge-stats-grid"></div>
+
+            <!-- Abas internas -->
+            <div class="inner-tabs" style="margin-top:20px">
+                <button class="inner-tab active"
+                        onclick="switchInnerTab('kt-add')">➕ Adicionar</button>
+                <button class="inner-tab"
+                        onclick="switchInnerTab('kt-search')">🔍 Buscar</button>
+                <button class="inner-tab"
+                        onclick="switchInnerTab('kt-test')">🧪 Testar Pipeline</button>
+                <button class="inner-tab"
+                        onclick="switchInnerTab('kt-cache')">⚡ Cache Semântico</button>
+                <button class="inner-tab"
+                        onclick="switchInnerTab('kt-bulk')">📦 Carga em Massa</button>
+            </div>
+
+            <!-- Adicionar conhecimento -->
+            <div id="kt-add" class="inner-tab-content">
+                <h3 style="margin-bottom:14px">➕ Adicionar Conhecimento</h3>
+                <div class="knowledge-form">
+                    <div class="form-group" style="grid-column:1/-1">
+                        <label>Conteúdo *</label>
+                        <textarea id="kConteudo" rows="6"
+                                  style="width:100%;padding:10px;border:1px solid
+                                 var(--border);border-radius:8px;font-size:13px;
+                                 resize:vertical;font-family:inherit"
+                                  placeholder="Cole aqui o texto da lei, doutrina, resolução, súmula..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Matéria</label>
+                        <input type="text" id="kMateria"
+                               placeholder="Ex: Direito Administrativo"
+                               list="materiasList">
+                        <datalist id="materiasList">
+                            <option value="Direito Administrativo">
+                            <option value="Direito Constitucional">
+                            <option value="Direito Financeiro">
+                            <option value="Controle Externo">
+                            <option value="Administração Pública">
+                            <option value="Contabilidade Pública">
+                            <option value="Auditoria Governamental">
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Concurso (opcional)</label>
+                        <select id="kContestId"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tópico (opcional)</label>
+                        <select id="kTopicoId">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fonte / Referência</label>
+                        <input type="text" id="kFonte"
+                               placeholder="Ex: CF/1988, Art. 37 | Lei 8.112/90">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addKnowledge()"
+                        style="margin-top:12px">
+                    🧠 Indexar Conhecimento
+                </button>
+                <div id="kAddResult" class="result-box" style="margin-top:10px"></div>
+            </div>
+
+            <!-- Busca semântica -->
+            <div id="kt-search" class="inner-tab-content" style="display:none">
+                <h3 style="margin-bottom:14px">🔍 Busca Semântica na Base</h3>
+                <div class="filter-row">
+                    <div class="form-group" style="flex:1">
+                        <label>Consulta</label>
+                        <input type="text" id="kSearchQuery"
+                               placeholder="O que deseja buscar na base de conhecimento?"
+                               style="width:100%">
+                    </div>
+                    <div class="form-group">
+                        <label>Matéria (filtro)</label>
+                        <input type="text" id="kSearchMateria"
+                               placeholder="Opcional">
+                    </div>
+                    <div class="form-group">
+                        <label>Top K</label>
+                        <select id="kSearchTopK">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="justify-content:flex-end">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary"
+                                onclick="searchKnowledge()">🔍 Buscar</button>
+                    </div>
+                </div>
+                <div id="kSearchResults" class="knowledge-results"></div>
+            </div>
+
+            <!-- Testar pipeline -->
+            <div id="kt-test" class="inner-tab-content" style="display:none">
+                <h3 style="margin-bottom:6px">🧪 Testar Pipeline Completo</h3>
+                <p class="hint">
+                    Simula exatamente o que a IA fará: cache → RAG → Ollama → salva cache.
+                </p>
+                <div class="form-group" style="margin-bottom:10px">
+                    <label>Pergunta / Prompt</label>
+                    <textarea id="kTestPergunta" rows="4"
+                              style="width:100%;padding:10px;border:1px solid
+                             var(--border);border-radius:8px;font-size:13px;
+                             resize:vertical"
+                              placeholder="Ex: Explique os princípios da Administração Pública segundo o Art. 37 da CF/88"></textarea>
+                </div>
+                <div class="filter-row">
+                    <div class="form-group">
+                        <label>Matéria (filtro RAG)</label>
+                        <input type="text" id="kTestMateria" placeholder="Opcional">
+                    </div>
+                    <div class="form-group" style="justify-content:flex-end">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary"
+                                onclick="testPipeline()">🚀 Executar</button>
+                    </div>
+                </div>
+                <div id="kTestResult" style="display:none"></div>
+            </div>
+
+            <!-- Cache semântico -->
+            <div id="kt-cache" class="inner-tab-content" style="display:none">
+                <h3 style="margin-bottom:14px">⚡ Cache Semântico</h3>
+                <p class="hint">
+                    Perguntas já respondidas pela IA. Hits altos = IA não precisou
+                    ser chamada (economiza processamento).
+                </p>
+                <button class="btn btn-secondary btn-sm"
+                        onclick="loadCacheStats()"
+                        style="margin-bottom:12px">
+                    🔄 Atualizar
+                </button>
+                <div id="kCacheList" class="knowledge-results"></div>
+            </div>
+
+            <!-- Carga em massa -->
+            <div id="kt-bulk" class="inner-tab-content" style="display:none">
+                <h3 style="margin-bottom:6px">📦 Carga em Massa (JSON)</h3>
+                <div class="example-payload">
+                    <code>[
+                        {
+                        "conteudo": "Art. 37. A administração pública direta e indireta...",
+                        "materia": "Direito Constitucional",
+                        "contestId": 1,
+                        "topicoId": 1,
+                        "fonte": "CF/1988, Art. 37"
+                        },
+                        {
+                        "conteudo": "O princípio da legalidade determina que...",
+                        "materia": "Direito Administrativo",
+                        "fonte": "Doutrina"
+                        }
+                        ]</code>
+                </div>
+                <textarea id="kBulkPayload" class="json-editor" rows="10"
+                          placeholder="Cole o JSON array aqui..."></textarea>
+                <div class="action-row">
+                    <button class="btn btn-primary" onclick="bulkAddKnowledge()">
+                        📤 Importar
+                    </button>
+                    <button class="btn btn-secondary"
+                            onclick="loadKnowledgeExample()">
+                        📋 Exemplo
+                    </button>
+                </div>
+                <div id="kBulkResult" class="result-box" style="margin-top:10px"></div>
+            </div>
+        </section>
+
         <!-- Modal de revisão de questão IA -->
         <div id="iaReviewModal" class="modal-overlay" onclick="closeIAModalOutside(event)">
             <div class="modal-box" style="max-width:680px">
@@ -447,6 +635,8 @@
     <script src="/js/admin.js"></script>
     <script src="/js/ia-admin.js"></script>
     <script src="/js/rag-upload.js"></script>
+    <script src="/js/knowledge-admin.js"></script>
+
     <script>
         // Atualiza estimativa de tokens ao digitar
         document.addEventListener('DOMContentLoaded', () => {

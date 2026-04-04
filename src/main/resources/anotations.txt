@@ -2,10 +2,8 @@
 Proximas mudancas:
 
 
-1 - implementar cache semantico
-
-
- 5 - ajuste o simulador para que seja opcional poder  selecionar    alem do cargo fazer questoes   com  conteudo por assunto  e montar  provas simuladas com tudos os assuntos manualmente por configuracao no painel ou com base no edital carregado no sistema
+1 - ajustar para que ia crie  versione  uma mesma questao em diferentes formas mudando as palavras mas sem perder o sentido
+para se aprender a logica da questao.
 
 
 
@@ -48,3 +46,4 @@ certique-se  que toda a parte do sistema que precise fazer consultas e obter res
 5. Fechamento do Ciclo:
 sempre que Após o Ollama/IA  gerar a questão, o sistema deve salvar automaticamente a Pergunta, a Resposta e o Vetor na tabela de cache_questoes.
 6 - ajuste na melhor parte possivel do painel de admin um painel para que eu possa fazer RAG para melhorar a base de ifnormacoes da IA, modifique o que for necessario e me mostre como usar
+

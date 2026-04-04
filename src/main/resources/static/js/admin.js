@@ -61,6 +61,8 @@ function switchTab(tabName) {
   if (tabName === 'rag')          initRagTab();        // ← substitui loadRagDocuments()
   if (tabName === 'topics-view')  initTopicsView();
   if (tabName === 'ia-questions') initIAAdmin();
+  if (tabName === 'rag-knowledge') initKnowledgeAdmin();
+
 }
 
 function switchTabById(tabName) {
