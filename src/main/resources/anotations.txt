@@ -2,18 +2,24 @@
 Proximas mudancas:
 
 
-  2 - manter historico dos resultados para acompanhamento
-  3 - Salvar os esqueletos gerados no estruturador de Discursiva
- 4 - painel administrativo tela de gestao IA as questoes geradas por IA nao aparecem, adicionar funcioonalidade para gerar questoes nessa tela
- 5 - criar modulos simulador personalizavel que possa selecionar    alem do cargo fazer questoes   com  conteudo por assunto  e montar simulador de provas com tudos os assuntos manualmente  com base com edital carregado e analizado
+
+1 - Pipeline de Limpeza de Dados (Data Cleaning):
+  Automação: O sistema deve aplicar algoritmos pré-programados de limpeza (ex: remoção de stop-words, normalização de caracteres, remoção de duplicatas).
+  Inteligência: Implementar lógica para o sistema sugerir/aplicar a melhor técnica de limpeza baseada no tipo de arquivo.
+  Fallback Manual: Caso o sistema identifique baixa confiança na limpeza automática, deve abrir uma Interface de Edição para o usuário realizar ajustes manuais nos dados antes de prosseguir.
+
+
+ 5 - ajuste o simulador para que seja opcional poder  selecionar    alem do cargo fazer questoes   com  conteudo por assunto  e montar  provas simuladas com tudos os assuntos manualmente por configuracao no painel ou com base no edital carregado no sistema
 
 
 
-
+ 6 - manter historico dos resultados para acompanhamento
+ 7 - Salvar os esqueletos gerados no estruturador de Discursiva
+ 8 - painel administrativo tela de gestao IA as questoes geradas por IA nao aparecem, adicionar funcioonalidade para gerar questoes nessa tela
 
 concluidos:
     1 - Corrigir resultado do simulado que nao esta calculo e mostrando os resultados
-
+    2 - upload de arquivos em drag and drop e divisao de arquivos por tamanho.
 
 
 
