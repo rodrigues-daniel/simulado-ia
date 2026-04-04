@@ -1,5 +1,8 @@
 package br.cebraspe.simulado.ai.rag;
 
+import br.cebraspe.simulado.ai.rag.cleaning.CleaningCacheRepository;
+import br.cebraspe.simulado.ai.rag.cleaning.DataCleaningService;
+import br.cebraspe.simulado.ai.rag.cleaning.TextCleaningResult;
 import br.cebraspe.simulado.config.SystemConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,15 +39,21 @@ public class RagIngestionService {
     private final RagRepository          ragRepository;
     private final RagQueueRepository     queueRepository;
     private final SystemConfigRepository configRepository;
+    private final DataCleaningService cleaningService;
+    private final CleaningCacheRepository cleaningCache;
 
     public RagIngestionService(VectorStore vectorStore,
                                RagRepository ragRepository,
                                RagQueueRepository queueRepository,
-                               SystemConfigRepository configRepository) {
+                               SystemConfigRepository configRepository,
+                               DataCleaningService cleaningService,
+                               CleaningCacheRepository cleaningCache) {
         this.vectorStore      = vectorStore;
         this.ragRepository    = ragRepository;
         this.queueRepository  = queueRepository;
         this.configRepository = configRepository;
+        this.cleaningService = cleaningService;
+        this.cleaningCache = cleaningCache;
     }
 
     // ── Valida extensão do arquivo ──────────────────────────────────────
@@ -137,12 +146,13 @@ public class RagIngestionService {
     }
 
     // ── Processamento assíncrono ────────────────────────────────────────
+
     @Async
-    public CompletableFuture<Void> processAsync(Long documentId,
-                                                 byte[] fileBytes,
-                                                 String fileName,
-                                                 int chunkSizeKb,
-                                                 Long topicId) {
+    public CompletableFuture<ProcessingResult> processAsync(Long documentId,
+                                                            byte[] fileBytes,
+                                                            String fileName,
+                                                            int chunkSizeKb,
+                                                            Long topicId) {
         var qItem = queueRepository.enqueue(documentId, fileName, 0, 1);
 
         try {
@@ -150,39 +160,130 @@ public class RagIngestionService {
             ragRepository.updateDocumentStatus(documentId, "PROCESSING", 0);
 
             String ext = getExtension(fileName);
-            List<Document> chunks;
 
+            // ── 1. Extrai texto bruto ───────────────────────────────────────
+            String rawText;
             if ("pdf".equals(ext)) {
-                chunks = processPdf(fileBytes, fileName,
-                        chunkSizeKb, documentId, topicId);
+                rawText = extractPdfText(fileBytes, fileName);
             } else {
-                String text = new String(fileBytes, StandardCharsets.UTF_8);
-                chunks = processText(text, fileName,
-                        chunkSizeKb, documentId, topicId);
+                rawText = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
             }
 
-            // Persiste no PGVector
-            if (!chunks.isEmpty()) {
-                vectorStore.add(chunks);
+            // ── 2. Pipeline de limpeza ──────────────────────────────────────
+            var cleaningResult = cleaningService.clean(rawText, fileName);
+
+            // Persiste resultado da limpeza
+            cleaningCache.saveCleanedContent(
+                    documentId,
+                    cleaningResult.cleanedText(),
+                    cleaningResult.strategyUsed().name(),
+                    cleaningResult.confidenceScore(),
+                    false
+            );
+
+            // Se confiança baixa → marca para revisão manual e para aqui
+            if (cleaningResult.requiresManualReview()) {
+                ragRepository.updateDocumentStatus(documentId, "AWAITING_REVIEW", 0);
+                queueRepository.updateStatus(qItem.id(), "AWAITING_REVIEW");
+
+                log.warn("Documento {} requer revisão manual. Confiança: {:.2f}",
+                        fileName, cleaningResult.confidenceScore());
+
+                return CompletableFuture.completedFuture(
+                        new ProcessingResult(documentId, "AWAITING_REVIEW",
+                                cleaningResult, 0)
+                );
             }
 
-            // Salva metadados dos chunks
-            saveChunkMetadata(documentId, chunks);
+            // ── 3. Chunking e vetorização ───────────────────────────────────
+            var chunks = chunkAndVectorize(
+                    cleaningResult.cleanedText(), fileName,
+                    chunkSizeKb, documentId, topicId);
 
-            ragRepository.updateDocumentStatus(
-                    documentId, "COMPLETED", chunks.size());
+            ragRepository.updateDocumentStatus(documentId, "COMPLETED", chunks.size());
             queueRepository.updateStatus(qItem.id(), "COMPLETED");
 
-            log.info("Documento {} processado: {} chunks", fileName, chunks.size());
+            log.info("Documento {} concluído: {} chunks, confiança {:.2f}",
+                    fileName, chunks.size(), cleaningResult.confidenceScore());
+
+            return CompletableFuture.completedFuture(
+                    new ProcessingResult(documentId, "COMPLETED",
+                            cleaningResult, chunks.size())
+            );
 
         } catch (Exception e) {
             log.error("Erro ao processar {}: {}", fileName, e.getMessage(), e);
             queueRepository.updateError(qItem.id(), e.getMessage());
             ragRepository.updateDocumentStatus(documentId, "ERROR", 0);
+            return CompletableFuture.completedFuture(
+                    new ProcessingResult(documentId, "ERROR", null, 0));
         }
-
-        return CompletableFuture.completedFuture(null);
     }
+
+    // ── Extrai texto de PDF ─────────────────────────────────────────────
+    private String extractPdfText(byte[] bytes, String fileName) {
+        var resource = new ByteArrayResource(bytes) {
+            @Override public String getFilename() { return fileName; }
+        };
+        var reader = new PagePdfDocumentReader(resource);
+        return reader.get().stream()
+                .map(org.springframework.ai.document.Document::getText)
+                .collect(java.util.stream.Collectors.joining("\n\n"));
+    }
+
+    // ── Chunking + vetorização ───────────────────────────────────────────
+    private List<org.springframework.ai.document.Document> chunkAndVectorize(
+            String cleanedText, String fileName,
+            int chunkSizeKb, Long documentId, Long topicId) {
+
+        var doc = new org.springframework.ai.document.Document(
+                cleanedText, Map.of(
+                "documentId", documentId,
+                "topicId",    topicId != null ? topicId : 0L,
+                "source",     fileName
+        )
+        );
+        var splitter = buildSplitter(chunkSizeKb);
+        var chunks   = splitter.apply(List.of(doc));
+
+        if (!chunks.isEmpty()) {
+            vectorStore.add(chunks);
+        }
+        saveChunkMetadata(documentId, chunks);
+        return chunks;
+    }
+
+    // ── Processa após revisão manual ─────────────────────────────────────
+    public void processAfterManualReview(Long documentId, String editedContent,
+                                         int chunkSizeKb, Long topicId) {
+        // Salva conteúdo editado manualmente
+        var existing = cleaningCache.findByDocumentId(documentId);
+        String strategy = existing.map(c -> c.strategyUsed())
+                .orElse("GENERIC");
+
+        cleaningCache.saveCleanedContent(documentId, editedContent,
+                strategy, 1.0, true);
+
+        // Busca info do documento
+        var doc = ragRepository.findDocumentById(documentId).orElseThrow();
+
+        ragRepository.updateDocumentStatus(documentId, "PROCESSING", 0);
+
+        var chunks = chunkAndVectorize(editedContent, doc.name(),
+                chunkSizeKb, documentId, topicId);
+
+        ragRepository.updateDocumentStatus(documentId, "COMPLETED", chunks.size());
+
+        log.info("Documento {} processado após revisão manual: {} chunks",
+                doc.name(), chunks.size());
+    }
+
+    public record ProcessingResult(
+            Long documentId,
+            String status,
+            TextCleaningResult cleaningResult,
+            int chunksCreated
+    ) {}
 
     // ── Processa PDF ────────────────────────────────────────────────────
     private List<Document> processPdf(byte[] bytes, String fileName,

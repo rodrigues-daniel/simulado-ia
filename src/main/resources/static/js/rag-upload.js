@@ -225,6 +225,367 @@ async function uploadFiles() {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// ── PIPELINE DE LIMPEZA ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+
+let currentCleaningDocId  = null;
+let currentCleaningResult = null;
+
+// ── Preview de limpeza ao selecionar arquivo ─────────────────────────
+async function previewCleaning(file) {
+    if (!file) return;
+
+    const previewBox = document.getElementById('cleaningPreviewBox');
+    if (!previewBox) return;
+
+    previewBox.style.display = 'block';
+    previewBox.innerHTML = `
+        <div class="cleaning-loading">
+            <div class="processing-spinner"></div>
+            <span>Analisando arquivo e detectando estratégia de limpeza...</span>
+        </div>`;
+
+    try {
+        const form = new FormData();
+        form.append('file', file);
+
+        const res = await fetch('/api/rag/preview-cleaning', {
+            method: 'POST', body: form
+        });
+
+        if (!res.ok) return;
+        const result = await res.json();
+        currentCleaningResult = result;
+        renderCleaningPreview(result, file.name);
+
+    } catch (e) {
+        previewBox.innerHTML =
+            '<p style="color:var(--text-muted);font-size:13px">Preview indisponível.</p>';
+    }
+}
+
+function renderCleaningPreview(result, fileName) {
+    const box = document.getElementById('cleaningPreviewBox');
+    if (!box) return;
+
+    const confidencePct = Math.round(result.confidenceScore * 100);
+    const confColor     = confidencePct >= 80 ? 'var(--success)'
+                        : confidencePct >= 65 ? 'var(--warning)'
+                        : 'var(--danger)';
+
+    const strategyInfo  = getStrategyInfo(result.strategyUsed);
+
+    box.innerHTML = `
+        <div class="cleaning-preview-header">
+            <div>
+                <div style="font-weight:700;font-size:14px">
+                    🧹 Limpeza de Dados — ${escapeHtml(fileName)}
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+                    ${strategyInfo.label}
+                </div>
+            </div>
+            <div class="cleaning-confidence">
+                <div class="cleaning-conf-value" style="color:${confColor}">
+                    ${confidencePct}%
+                </div>
+                <div class="cleaning-conf-label">Confiança</div>
+            </div>
+        </div>
+
+        <!-- Estratégia detectada -->
+        <div class="cleaning-strategy-badge" style="background:${strategyInfo.bg};
+             color:${strategyInfo.color}">
+            ${strategyInfo.icon} ${strategyInfo.label}
+            <span style="font-weight:400;margin-left:4px">
+                — ${escapeHtml(strategyInfo.desc)}
+            </span>
+        </div>
+
+        <!-- Issues encontradas -->
+        ${result.issuesFound?.length ? `
+        <div class="cleaning-issues">
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px">
+                🔍 Problemas Detectados
+            </div>
+            ${result.issuesFound.map(issue => `
+                <div class="cleaning-issue-item">
+                    <span class="cleaning-issue-type">
+                        ${getIssueEmoji(issue.type)} ${formatIssueType(issue.type)}
+                    </span>
+                    <span class="cleaning-issue-desc">
+                        ${escapeHtml(issue.description)}
+                    </span>
+                    <span class="cleaning-issue-count">${issue.occurrences}x</span>
+                </div>
+            `).join('')}
+        </div>` : ''}
+
+        <!-- Estatísticas -->
+        <div class="cleaning-stats-row">
+            <div class="cleaning-stat">
+                <span class="cleaning-stat-value">
+                    ${formatBytes(result.stats?.originalChars || 0)}
+                </span>
+                <span class="cleaning-stat-label">Original</span>
+            </div>
+            <div style="color:var(--text-muted);font-size:18px">→</div>
+            <div class="cleaning-stat">
+                <span class="cleaning-stat-value" style="color:var(--success)">
+                    ${formatBytes(result.stats?.cleanedChars || 0)}
+                </span>
+                <span class="cleaning-stat-label">Após limpeza</span>
+            </div>
+            <div class="cleaning-stat">
+                <span class="cleaning-stat-value" style="color:var(--warning)">
+                    -${(result.stats?.reductionPct || 0).toFixed(1)}%
+                </span>
+                <span class="cleaning-stat-label">Redução</span>
+            </div>
+        </div>
+
+        <!-- Seletor de estratégia alternativa -->
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+            <label style="font-size:12px;font-weight:700;color:var(--text-muted)">
+                Trocar estratégia:
+            </label>
+            <select id="strategyOverride" class="strategy-select"
+                    onchange="applyStrategyOverride()">
+                <option value="">-- Usar detectada automaticamente --</option>
+                <option value="PDF_LEGAL">📜 PDF Jurídico/Legal</option>
+                <option value="PDF_ACADEMIC">🎓 PDF Acadêmico</option>
+                <option value="CSV_STRUCTURED">📊 CSV Estruturado</option>
+                <option value="TXT_QUESTIONS">❓ TXT Banco de Questões</option>
+                <option value="TXT_PLAIN">📝 TXT Texto Plano</option>
+                <option value="GENERIC">🔧 Limpeza Genérica</option>
+            </select>
+        </div>
+
+        ${result.requiresManualReview ? `
+        <div class="cleaning-manual-warning">
+            ⚠️ <strong>Confiança baixa (${confidencePct}%).</strong>
+            Após o upload, o sistema abrirá o editor manual antes de vetorizar.
+        </div>` : `
+        <div class="cleaning-auto-ok">
+            ✅ Limpeza automática aprovada. O arquivo será processado diretamente.
+        </div>`}
+    `;
+}
+
+async function applyStrategyOverride() {
+    const strategy = document.getElementById('strategyOverride')?.value;
+    if (!strategy || !currentCleaningResult) return;
+
+    const box = document.getElementById('cleaningPreviewBox');
+    box.innerHTML = '<div class="cleaning-loading"><div class="processing-spinner"></div>' +
+                    '<span>Aplicando estratégia...</span></div>';
+
+    try {
+        const result = await API.post('/rag/apply-cleaning', {
+            content:  currentCleaningResult.originalText,
+            fileName: 'preview',
+            strategy
+        });
+        currentCleaningResult = result;
+        renderCleaningPreview(result, 'preview');
+    } catch (e) {
+        showToast('Erro ao aplicar estratégia', 'error');
+    }
+}
+
+// ── Editor manual (quando confiança < 65%) ───────────────────────────
+function openManualEditor(documentId, fileName) {
+    currentCleaningDocId = documentId;
+
+    // Busca conteúdo pré-limpo para edição
+    API.get(`/rag/documents/${documentId}/cleaning`).then(data => {
+        renderManualEditorModal(data, fileName);
+    }).catch(() => {
+        showToast('Erro ao carregar conteúdo para edição', 'error');
+    });
+}
+
+function renderManualEditorModal(cleaningData, fileName) {
+    const modal = document.getElementById('cleaningEditorModal');
+    const body  = document.getElementById('cleaningEditorBody');
+
+    document.getElementById('cleaningEditorTitle').textContent =
+        `✏️ Revisão Manual — ${escapeHtml(fileName || 'Documento')}`;
+
+    const confidencePct = Math.round((cleaningData.confidenceScore || 0) * 100);
+
+    body.innerHTML = `
+        <div class="editor-warning-bar">
+            ⚠️ Confiança da limpeza automática: <strong>${confidencePct}%</strong>.
+            Revise o conteúdo abaixo antes de prosseguir com a vetorização.
+        </div>
+
+        <div class="editor-info-row">
+            <span>Estratégia aplicada:
+                <strong>${getStrategyInfo(cleaningData.strategyUsed).label}</strong>
+            </span>
+            ${cleaningData.manuallyEdited
+                ? '<span class="badge badge-success">✅ Editado manualmente</span>'
+                : ''}
+        </div>
+
+        <div class="editor-toolbar">
+            <button class="btn btn-secondary btn-sm"
+                    onclick="editorReset()">↩ Resetar</button>
+            <button class="btn btn-secondary btn-sm"
+                    onclick="editorRemoveBlankLines()">🗑️ Remover linhas em branco</button>
+            <button class="btn btn-secondary btn-sm"
+                    onclick="editorNormalizeSpaces()">⎵ Normalizar espaços</button>
+            <span id="editorCharCount" style="font-size:12px;color:var(--text-muted);
+                  margin-left:auto">
+                ${(cleaningData.cleanedContent || '').length} caracteres
+            </span>
+        </div>
+
+        <textarea id="cleaningEditor"
+                  class="cleaning-editor-textarea"
+                  oninput="updateEditorCharCount()">${escapeHtml(cleaningData.cleanedContent || '')}</textarea>
+
+        <div class="editor-actions">
+            <button class="btn btn-secondary" onclick="closeCleaningEditor()">
+                Cancelar
+            </button>
+            <button class="btn btn-primary" onclick="approveCleaningAndProcess()">
+                ✅ Aprovar e Vetorizar
+            </button>
+        </div>
+    `;
+
+    // Guarda original para reset
+    body.dataset.original = cleaningData.cleanedContent || '';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function editorReset() {
+    const ta = document.getElementById('cleaningEditor');
+    const original = document.getElementById('cleaningEditorBody').dataset.original;
+    if (ta) ta.value = unescapeHtml(original);
+    updateEditorCharCount();
+}
+
+function editorRemoveBlankLines() {
+    const ta = document.getElementById('cleaningEditor');
+    if (!ta) return;
+    ta.value = ta.value.replace(/\n{3,}/g, '\n\n');
+    updateEditorCharCount();
+}
+
+function editorNormalizeSpaces() {
+    const ta = document.getElementById('cleaningEditor');
+    if (!ta) return;
+    ta.value = ta.value.replace(/[ \t]+/g, ' ')
+                       .replace(/^ +/gm, '');
+    updateEditorCharCount();
+}
+
+function updateEditorCharCount() {
+    const ta    = document.getElementById('cleaningEditor');
+    const count = document.getElementById('editorCharCount');
+    if (ta && count) count.textContent = `${ta.value.length} caracteres`;
+}
+
+async function approveCleaningAndProcess() {
+    const ta = document.getElementById('cleaningEditor');
+    if (!ta || !currentCleaningDocId) return;
+
+    const editedContent = ta.value;
+    const chunkKb       = parseInt(
+            document.getElementById('chunkSizeKb')?.value) || 50;
+
+    try {
+        await API.post(
+            `/rag/documents/${currentCleaningDocId}/approve-cleaning`,
+            { editedContent, chunkSizeKb: chunkKb, topicId: null }
+        );
+        closeCleaningEditor();
+        showToast('Conteúdo aprovado! Vetorização iniciada.', 'success');
+        await loadRagDocuments();
+        await loadQueueStatus();
+        startQueuePolling();
+    } catch (e) {
+        showToast('Erro ao aprovar: ' + e.message, 'error');
+    }
+}
+
+function closeCleaningEditor() {
+    document.getElementById('cleaningEditorModal')?.classList.remove('open');
+    document.body.style.overflow = '';
+    currentCleaningDocId = null;
+}
+
+// ── Helpers de UI ────────────────────────────────────────────────────
+function getStrategyInfo(strategy) {
+    const map = {
+        PDF_LEGAL:      { label: 'PDF Jurídico/Legal',  icon: '📜',
+                          bg: '#eff6ff', color: '#1e40af',
+                          desc: 'Remove artefatos de paginação e cabeçalhos' },
+        PDF_ACADEMIC:   { label: 'PDF Acadêmico',       icon: '🎓',
+                          bg: '#f0fdf4', color: '#166534',
+                          desc: 'Remove referências e numerações isoladas' },
+        CSV_STRUCTURED: { label: 'CSV Estruturado',     icon: '📊',
+                          bg: '#fef9c3', color: '#854d0e',
+                          desc: 'Remove duplicatas e normaliza separadores' },
+        TXT_QUESTIONS:  { label: 'Banco de Questões',   icon: '❓',
+                          bg: '#ede9fe', color: '#5b21b6',
+                          desc: 'Preserva estrutura e remove gabaritos inline' },
+        TXT_PLAIN:      { label: 'Texto Plano',         icon: '📝',
+                          bg: '#f1f5f9', color: '#475569',
+                          desc: 'Normaliza espaços e quebras de linha' },
+        GENERIC:        { label: 'Limpeza Genérica',    icon: '🔧',
+                          bg: '#f1f5f9', color: '#475569',
+                          desc: 'Normalização básica de texto' }
+    };
+    return map[strategy] || map.GENERIC;
+}
+
+function getIssueEmoji(type) {
+    const map = {
+        CONTROL_CHARS:        '🔣',
+        PDF_PAGE_ARTIFACTS:   '📄',
+        BIBLIOGRAPHY_REMOVED: '📚',
+        INLINE_GABARITO:      '🎯',
+        DUPLICATE_LINES:      '🔁',
+        DUPLICATE_ROWS:       '🔁',
+        EMPTY_ROWS:           '⬜',
+        STOP_WORDS:           '🚫'
+    };
+    return map[type] || '⚠️';
+}
+
+function formatIssueType(type) {
+    return type.replace(/_/g, ' ')
+               .toLowerCase()
+               .replace(/^\w/, c => c.toUpperCase());
+}
+
+function formatBytes(chars) {
+    if (chars < 1000)   return chars + ' chars';
+    if (chars < 100000) return (chars / 1000).toFixed(1) + 'K chars';
+    return (chars / 1000000).toFixed(2) + 'M chars';
+}
+
+function unescapeHtml(str) {
+    const d = document.createElement('div');
+    d.innerHTML = str;
+    return d.textContent || d.innerText || '';
+}
+
+// Sobrescreve processFileSelection para incluir preview de limpeza
+const _originalProcessFileSelection = processFileSelection;
+function processFileSelection(files) {
+    _originalProcessFileSelection(files);
+    // Faz preview apenas do primeiro arquivo válido
+    const validFile = files.find(f => isValidFile(f));
+    if (validFile) previewCleaning(validFile);
+}
+
 // ── Ingestão por texto ───────────────────────────────────────────────
 async function ingestText() {
     const textarea = document.getElementById('ragTextPayload');
