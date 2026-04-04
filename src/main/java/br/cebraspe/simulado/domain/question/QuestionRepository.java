@@ -311,6 +311,34 @@ public class QuestionRepository {
         );
     }
 
+    public List<Question> findForSimulationBySource(Long contestId,
+                                                    String source,
+                                                    Integer limit) {
+        String sourceFilter = "IA-GERADA".equals(source)
+                ? "AND q.source = 'IA-GERADA' AND (q.ia_approved = TRUE OR q.ia_reviewed = FALSE)"
+                : "AND (q.source IS NULL OR q.source != 'IA-GERADA')";
+
+        return jdbcClient.sql("""
+            SELECT q.id, q.topic_id, q.contest_id, q.statement, q.correct_answer,
+                   q.law_paragraph, q.law_reference, q.explanation, q.professor_tip,
+                   q.trap_keywords, q.year, q.source, q.difficulty,
+                   q.ia_reviewed, q.ia_approved, q.ia_confidence,
+                   q.review_note, q.reviewed_at, q.created_at
+            FROM questions q
+            JOIN topics t ON q.topic_id = t.id
+            WHERE t.contest_id  = :contestId
+              AND t.is_priority = TRUE
+              AND t.is_hidden   = FALSE
+            """ + sourceFilter + """
+            ORDER BY t.incidence_rate DESC, RANDOM()
+            LIMIT :limit
+            """)
+                .param("contestId", contestId)
+                .param("limit",     limit)
+                .query((rs, n) -> mapQuestion(rs))
+                .list();
+    }
+
     // ── Records de suporte ──────────────────────────────────────────────
 
     public record IAQuestionSummary(

@@ -1,6 +1,49 @@
 
-
 Proximas mudancas:
- 1 - para as respostas com dicas do professor mostrar um campo para salvar a dica ligando a questao para consultas posteriores e permita salvar anotacoes
- 2 - verificar se as respostas trazidas do banco vetoral estao sendo salvas na base normmal para consultas mais rapidas posteriomente
- 3 -  no painel de questoes geradas por ia ter opcao para gerar questoes por ia e antes disso saber porque nao estao aparecendo no painel administrativo atualmente
+
+
+1 - ajustar para que ia crie  versione  uma mesma questao em diferentes formas mudando as palavras mas sem perder o sentido
+para se aprender a logica da questao.
+
+
+
+ 6 - manter historico dos resultados para acompanhamento
+ 7 - Salvar os esqueletos gerados no estruturador de Discursiva
+ 8 - painel administrativo tela de gestao IA as questoes geradas por IA nao aparecem, adicionar funcioonalidade para gerar questoes nessa tela
+
+concluidos:
+    1 - Corrigir resultado do simulado que nao esta calculo e mostrando os resultados
+    2 - upload de arquivos em drag and drop e divisao de arquivos por tamanho.
+
+
+
+
+
+
+
+  -----------------------------------\
+  a - Análise de Prioridades (Pareto 80/20) aparentemente nao esta calulando corrigir como ultima prioridade
+  b - 1 - Pipeline de Limpeza de Dados (Data Cleaning):
+        Automação: O sistema deve aplicar algoritmos pré-programados de limpeza (ex: remoção de stop-words, normalização de caracteres, remoção de duplicatas).
+        Inteligência: Implementar lógica para o sistema sugerir/aplicar a melhor técnica de limpeza baseada no tipo de arquivo.
+        Fallback Manual: Caso o sistema identifique baixa confiança na limpeza automática, deve abrir uma Interface de Edição para o usuário realizar ajustes manuais nos dados antes de prosseguir.
+
+######################   REVISAO APRA ESTRUTURA DE RAG #####################################
+
+
+Minha implementação atual está instável e lenta nas respostas. Preciso revisar e refatorar o pipeline de dados para ter certeza que segue este fluxo lógico rigoroso:
+1. Camada de Embedding:
+Use a biblioteca ollama para gerar embeddings. Garanta que o modelo de embedding (ex: nomic-embed-text) seja consistente tanto na ingestão quanto na busca.
+2. Implementação do Cache Semântico:
+Antes de chamar o LLM (ollama), o sistema deve converter a pergunta  em vetor.
+Execute uma busca na tabela cache_questoes usando o operador de distância de cosseno (<=>).
+Se a distância for menor que 0.1 (muito similar), retorne a resposta do banco imediatamente e interrompa o processo (economizando processamento).
+3. Implementação do RAG (se o cache falhar):
+Busque os top 3 fragmentos mais relevantes na tabela conhecimento_estudo.
+Use uma consulta SQL que combine a similaridade vetorial com filtros (ex: filtrar pela matéria específica do simulado ou topicos, etc...).
+4. Engenharia de Prompt (Ollama):
+certique-se  que toda a parte do sistema que precise fazer consultas e obter respostas por ia  siga essa logica .
+5. Fechamento do Ciclo:
+sempre que Após o Ollama/IA  gerar a questão, o sistema deve salvar automaticamente a Pergunta, a Resposta e o Vetor na tabela de cache_questoes.
+6 - ajuste na melhor parte possivel do painel de admin um painel para que eu possa fazer RAG para melhorar a base de ifnormacoes da IA, modifique o que for necessario e me mostre como usar
+

@@ -454,3 +454,28 @@ function renderRagTopicCard(r) {
     </div>`;
 }
 
+// ── Geração de questões por tópico no painel IA ─────────────────────────
+async function generateForTopic(topicId, topicName) {
+    const count = prompt(
+        `Quantas questões deseja gerar para:\n"${topicName}"?\n(máx: 20)`,
+        '10'
+    );
+    if (!count || isNaN(count)) return;
+    const qty = Math.min(parseInt(count), 20);
+
+    showToast(`Gerando ${qty} questões via IA para "${topicName}"...`, 'success');
+
+    try {
+        const result = await API.post(
+            `/ia-admin/topics/${topicId}/generate`,
+            { count: qty }
+        );
+        showToast(result.message || `${result.generated} questões geradas!`, 'success');
+        await loadIAStats();
+        await loadIAQuestions();
+    } catch (e) {
+        showToast('Erro ao gerar questões. Verifique se o Ollama está ativo.', 'error');
+        console.error(e);
+    }
+}
+

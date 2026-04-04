@@ -39,8 +39,16 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 55MB
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  task:
+    execution:
+      pool:
+        core-size: 3
+        max-size: 5
+        queue-capacity: 50
+      thread-name-prefix: rag-async-
 
 server:
   port: 8080

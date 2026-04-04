@@ -50,13 +50,20 @@ public class SimulationRepository {
 
     public void saveSimulationQuestions(Long simulationId, List<Question> questions) {
         for (int i = 0; i < questions.size(); i++) {
+            Long questionId = questions.get(i).id(); // ← campo correto do record
+            if (questionId == null) {
+                throw new RuntimeException(
+                        "Questão sem ID na posição " + i + " ao salvar simulado");
+            }
             jdbcClient.sql("""
-                    INSERT INTO simulation_questions (simulation_id, question_id, order_number)
-                    VALUES (:simId, :questionId, :order)
-                    """)
-                    .param("simId", simulationId)
-                    .param("questionId", questions.get(i).id())
-                    .param("order", i + 1)
+                INSERT INTO simulation_questions
+                    (simulation_id, question_id, order_number)
+                VALUES (:simId, :questionId, :order)
+                ON CONFLICT DO NOTHING
+                """)
+                    .param("simId",      simulationId)
+                    .param("questionId", questionId)
+                    .param("order",      i + 1)
                     .update();
         }
     }
@@ -156,5 +163,22 @@ public class SimulationRepository {
             Long id, Long simulationId, Long questionId,
             Integer orderNumber, Boolean userAnswer,
             Boolean isSkipped, LocalDateTime answeredAt) {
+    }
+
+    // Salva questões pelo ID diretamente (sem precisar do objeto Question)
+    public void saveSimulationQuestionIds(Long simulationId,
+                                          List<Long> questionIds) {
+        for (int i = 0; i < questionIds.size(); i++) {
+            jdbcClient.sql("""
+                INSERT INTO simulation_questions
+                    (simulation_id, question_id, order_number)
+                VALUES (:simId, :questionId, :order)
+                ON CONFLICT DO NOTHING
+                """)
+                    .param("simId",      simulationId)
+                    .param("questionId", questionIds.get(i))
+                    .param("order",      i + 1)
+                    .update();
+        }
     }
 }
