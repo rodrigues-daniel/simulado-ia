@@ -433,7 +433,6 @@ function renderTopicRow(topic) {
                 ${qCount}
                 <span>questões</span>
             </div>
-           // Substitua a linha do botão "Ver" no renderTopicRow
            ${qCount > 0 ? `
            <div style="display:flex;gap:4px;flex-direction:column;align-items:center">
                <button class="btn btn-secondary btn-sm"
