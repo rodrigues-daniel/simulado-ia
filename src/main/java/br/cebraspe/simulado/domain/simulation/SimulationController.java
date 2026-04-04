@@ -1,26 +1,38 @@
 package br.cebraspe.simulado.domain.simulation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/simulations")
 public class SimulationController {
 
-    private final SimulationService simulationService;
+    private static final Logger log =
+            LoggerFactory.getLogger(SimulationController.class);
+
+    private final SimulationService    simulationService;
     private final SimulationRepository simulationRepository;
 
     public SimulationController(SimulationService simulationService,
-            SimulationRepository simulationRepository) {
-        this.simulationService = simulationService;
+                                SimulationRepository simulationRepository) {
+        this.simulationService    = simulationService;
         this.simulationRepository = simulationRepository;
     }
 
     @PostMapping
-    public ResponseEntity<Simulation> create(@RequestBody CreateSimulationRequest req) {
+    public ResponseEntity<Simulation> create(
+            @RequestBody CreateSimulationRequest req) {
         return ResponseEntity.ok(simulationService.createSimulation(
-                req.contestId(), req.name(), req.questionCount(), req.timeLimitMin()));
+                req.contestId(),
+                req.name(),
+                req.questionCount(),
+                req.timeLimitMin(),
+                req.questionIds()   // ← IDs das questões escolhidas
+        ));
     }
 
     @GetMapping("/{id}")
@@ -31,15 +43,24 @@ public class SimulationController {
     }
 
     @GetMapping("/{id}/questions")
-    public ResponseEntity<?> getQuestions(@PathVariable Long id) {
-        return ResponseEntity.ok(simulationRepository.findSimulationQuestions(id));
+    public ResponseEntity<List<SimulationRepository.SimulationQuestion>> getQuestions(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(
+                simulationRepository.findSimulationQuestions(id));
     }
 
     @PostMapping("/{id}/finish")
-    public ResponseEntity<SimulationResult> finish(
+    public ResponseEntity<?> finish(
             @PathVariable Long id,
             @RequestBody Map<Long, Boolean> answers) {
-        return ResponseEntity.ok(simulationService.finishSimulation(id, answers));
+        try {
+            return ResponseEntity.ok(
+                    simulationService.finishSimulation(id, answers));
+        } catch (Exception e) {
+            log.error("Erro ao finalizar simulado {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/{id}/result")
@@ -50,7 +71,10 @@ public class SimulationController {
     }
 
     public record CreateSimulationRequest(
-            Long contestId, String name,
-            Integer questionCount, Integer timeLimitMin) {
-    }
+            Long         contestId,
+            String       name,
+            Integer      questionCount,
+            Integer      timeLimitMin,
+            List<Long>   questionIds    // ← campo novo
+    ) {}
 }

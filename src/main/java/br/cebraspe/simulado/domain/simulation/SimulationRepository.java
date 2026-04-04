@@ -164,4 +164,21 @@ public class SimulationRepository {
             Integer orderNumber, Boolean userAnswer,
             Boolean isSkipped, LocalDateTime answeredAt) {
     }
+
+    // Salva questões pelo ID diretamente (sem precisar do objeto Question)
+    public void saveSimulationQuestionIds(Long simulationId,
+                                          List<Long> questionIds) {
+        for (int i = 0; i < questionIds.size(); i++) {
+            jdbcClient.sql("""
+                INSERT INTO simulation_questions
+                    (simulation_id, question_id, order_number)
+                VALUES (:simId, :questionId, :order)
+                ON CONFLICT DO NOTHING
+                """)
+                    .param("simId",      simulationId)
+                    .param("questionId", questionIds.get(i))
+                    .param("order",      i + 1)
+                    .update();
+        }
+    }
 }
