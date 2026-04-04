@@ -1,16 +1,18 @@
 
 Proximas mudancas:
 
-  1 - Corrigir resultado do simulado que nao esta calculo e mostrando os resultados
+
   2 - manter historico dos resultados para acompanhamento
   3 - Salvar os esqueletos gerados no estruturador de Discursiva
  4 - painel administrativo tela de gestao IA as questoes geradas por IA nao aparecem, adicionar funcioonalidade para gerar questoes nessa tela
+ 5 - criar modulos simulador personalizavel que possa selecionar    alem do cargo fazer questoes   com  conteudo por assunto  e montar simulador de provas com tudos os assuntos manualmente  com base com edital carregado e analizado
 
 
 
 
 
-
+concluidos:
+    1 - Corrigir resultado do simulado que nao esta calculo e mostrando os resultados
 
 
 
