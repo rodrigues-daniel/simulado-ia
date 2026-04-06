@@ -149,8 +149,7 @@
                 <div class="rag-config-item">
                     <label>⚙️ Tamanho do Chunk</label>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <input type="number" id="chunkSizeKb" min="10" max="500"
-                               value="50" style="width:80px">
+                        <input type="number" id="chunkSizeKb" min="10" max="500" value="50" style="width:80px">
                         <span style="font-size:13px;color:var(--text-muted)">KB</span>
                     </div>
                 </div>
@@ -170,11 +169,8 @@
                     <h3>📤 Upload de Arquivos</h3>
 
                     <!-- Drag & Drop -->
-                    <div id="dropZone" class="drop-zone"
-                         ondragover="onDragOver(event)"
-                         ondragleave="onDragLeave(event)"
-                         ondrop="onDrop(event)"
-                         onclick="document.getElementById('ragFiles').click()">
+                    <div id="dropZone" class="drop-zone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+                        ondrop="onDrop(event)" onclick="document.getElementById('ragFiles').click()">
                         <div class="drop-zone-icon">📁</div>
                         <div class="drop-zone-title">
                             Arraste arquivos aqui ou clique para selecionar
@@ -182,9 +178,8 @@
                         <div class="drop-zone-subtitle">
                             Até 5 arquivos • PDF, TXT, CSV • Máx. 50MB cada
                         </div>
-                        <input type="file" id="ragFiles" multiple hidden
-                               accept=".pdf,.txt,.csv"
-                               onchange="onFilesSelected(event)">
+                        <input type="file" id="ragFiles" multiple hidden accept=".pdf,.txt,.csv"
+                            onchange="onFilesSelected(event)">
                     </div>
                     <!-- Preview de limpeza -->
                     <div id="cleaningPreviewBox" class="cleaning-preview-box" style="display:none"></div>
@@ -215,8 +210,7 @@
                         </div>
                     </div>
 
-                    <button class="btn btn-primary" id="btnUpload"
-                            onclick="uploadFiles()" disabled>
+                    <button class="btn btn-primary" id="btnUpload" onclick="uploadFiles()" disabled>
                         🚀 Iniciar Upload e Processamento
                     </button>
 
@@ -236,9 +230,8 @@
                             }</code>
                     </div>
                     <textarea id="ragTextPayload" class="json-editor" rows="8"
-                              placeholder="Cole o JSON aqui..."></textarea>
-                    <button class="btn btn-primary" onclick="ingestText()"
-                            style="margin-top:8px">
+                        placeholder="Cole o JSON aqui..."></textarea>
+                    <button class="btn btn-primary" onclick="ingestText()" style="margin-top:8px">
                         📤 Ingerir Texto
                     </button>
                     <div id="ragTextResult" class="result-box" style="margin-top:10px"></div>
@@ -415,8 +408,7 @@
         </section>
 
         <!-- Tab: Base de Conhecimento IA -->
-        <section id="tab-rag-knowledge" class="tab-content section-card"
-                 style="display:none">
+        <section id="tab-rag-knowledge" class="tab-content section-card" style="display:none">
             <h2>🧠 Base de Conhecimento — Pipeline RAG</h2>
             <p class="hint">
                 Gerencie os conhecimentos que a IA usa para gerar explicações e questões.
@@ -428,16 +420,12 @@
 
             <!-- Abas internas -->
             <div class="inner-tabs" style="margin-top:20px">
-                <button class="inner-tab active"
-                        onclick="switchInnerTab('kt-add')">➕ Adicionar</button>
-                <button class="inner-tab"
-                        onclick="switchInnerTab('kt-search')">🔍 Buscar</button>
-                <button class="inner-tab"
-                        onclick="switchInnerTab('kt-test')">🧪 Testar Pipeline</button>
-                <button class="inner-tab"
-                        onclick="switchInnerTab('kt-cache')">⚡ Cache Semântico</button>
-                <button class="inner-tab"
-                        onclick="switchInnerTab('kt-bulk')">📦 Carga em Massa</button>
+                <button class="inner-tab active" onclick="switchInnerTab('kt-add')">➕ Adicionar</button>
+                <button class="inner-tab" onclick="switchInnerTab('kt-search')">🔍 Buscar</button>
+                <button class="inner-tab" onclick="switchInnerTab('kt-test')">🧪 Testar Pipeline</button>
+                <button class="inner-tab" onclick="switchInnerTab('kt-cache')">⚡ Cache Semântico</button>
+                <button class="inner-tab" onclick="switchInnerTab('kt-bulk')">📦 Carga em Massa</button>
+                <button class="inner-tab" onclick="switchInnerTab('kt-index')"> 📤 Indexar Questões</button>
             </div>
 
             <!-- Adicionar conhecimento -->
@@ -446,17 +434,14 @@
                 <div class="knowledge-form">
                     <div class="form-group" style="grid-column:1/-1">
                         <label>Conteúdo *</label>
-                        <textarea id="kConteudo" rows="6"
-                                  style="width:100%;padding:10px;border:1px solid
+                        <textarea id="kConteudo" rows="6" style="width:100%;padding:10px;border:1px solid
                                  var(--border);border-radius:8px;font-size:13px;
                                  resize:vertical;font-family:inherit"
-                                  placeholder="Cole aqui o texto da lei, doutrina, resolução, súmula..."></textarea>
+                            placeholder="Cole aqui o texto da lei, doutrina, resolução, súmula..."></textarea>
                     </div>
                     <div class="form-group">
                         <label>Matéria</label>
-                        <input type="text" id="kMateria"
-                               placeholder="Ex: Direito Administrativo"
-                               list="materiasList">
+                        <input type="text" id="kMateria" placeholder="Ex: Direito Administrativo" list="materiasList">
                         <datalist id="materiasList">
                             <option value="Direito Administrativo">
                             <option value="Direito Constitucional">
@@ -479,12 +464,10 @@
                     </div>
                     <div class="form-group">
                         <label>Fonte / Referência</label>
-                        <input type="text" id="kFonte"
-                               placeholder="Ex: CF/1988, Art. 37 | Lei 8.112/90">
+                        <input type="text" id="kFonte" placeholder="Ex: CF/1988, Art. 37 | Lei 8.112/90">
                     </div>
                 </div>
-                <button class="btn btn-primary" onclick="addKnowledge()"
-                        style="margin-top:12px">
+                <button class="btn btn-primary" onclick="addKnowledge()" style="margin-top:12px">
                     🧠 Indexar Conhecimento
                 </button>
                 <div id="kAddResult" class="result-box" style="margin-top:10px"></div>
@@ -496,14 +479,12 @@
                 <div class="filter-row">
                     <div class="form-group" style="flex:1">
                         <label>Consulta</label>
-                        <input type="text" id="kSearchQuery"
-                               placeholder="O que deseja buscar na base de conhecimento?"
-                               style="width:100%">
+                        <input type="text" id="kSearchQuery" placeholder="O que deseja buscar na base de conhecimento?"
+                            style="width:100%">
                     </div>
                     <div class="form-group">
                         <label>Matéria (filtro)</label>
-                        <input type="text" id="kSearchMateria"
-                               placeholder="Opcional">
+                        <input type="text" id="kSearchMateria" placeholder="Opcional">
                     </div>
                     <div class="form-group">
                         <label>Top K</label>
@@ -515,8 +496,7 @@
                     </div>
                     <div class="form-group" style="justify-content:flex-end">
                         <label>&nbsp;</label>
-                        <button class="btn btn-primary"
-                                onclick="searchKnowledge()">🔍 Buscar</button>
+                        <button class="btn btn-primary" onclick="searchKnowledge()">🔍 Buscar</button>
                     </div>
                 </div>
                 <div id="kSearchResults" class="knowledge-results"></div>
@@ -530,11 +510,10 @@
                 </p>
                 <div class="form-group" style="margin-bottom:10px">
                     <label>Pergunta / Prompt</label>
-                    <textarea id="kTestPergunta" rows="4"
-                              style="width:100%;padding:10px;border:1px solid
+                    <textarea id="kTestPergunta" rows="4" style="width:100%;padding:10px;border:1px solid
                              var(--border);border-radius:8px;font-size:13px;
                              resize:vertical"
-                              placeholder="Ex: Explique os princípios da Administração Pública segundo o Art. 37 da CF/88"></textarea>
+                        placeholder="Ex: Explique os princípios da Administração Pública segundo o Art. 37 da CF/88"></textarea>
                 </div>
                 <div class="filter-row">
                     <div class="form-group">
@@ -543,8 +522,7 @@
                     </div>
                     <div class="form-group" style="justify-content:flex-end">
                         <label>&nbsp;</label>
-                        <button class="btn btn-primary"
-                                onclick="testPipeline()">🚀 Executar</button>
+                        <button class="btn btn-primary" onclick="testPipeline()">🚀 Executar</button>
                     </div>
                 </div>
                 <div id="kTestResult" style="display:none"></div>
@@ -557,9 +535,7 @@
                     Perguntas já respondidas pela IA. Hits altos = IA não precisou
                     ser chamada (economiza processamento).
                 </p>
-                <button class="btn btn-secondary btn-sm"
-                        onclick="loadCacheStats()"
-                        style="margin-bottom:12px">
+                <button class="btn btn-secondary btn-sm" onclick="loadCacheStats()" style="margin-bottom:12px">
                     🔄 Atualizar
                 </button>
                 <div id="kCacheList" class="knowledge-results"></div>
@@ -585,17 +561,78 @@
                         ]</code>
                 </div>
                 <textarea id="kBulkPayload" class="json-editor" rows="10"
-                          placeholder="Cole o JSON array aqui..."></textarea>
+                    placeholder="Cole o JSON array aqui..."></textarea>
                 <div class="action-row">
                     <button class="btn btn-primary" onclick="bulkAddKnowledge()">
                         📤 Importar
                     </button>
-                    <button class="btn btn-secondary"
-                            onclick="loadKnowledgeExample()">
+                    <button class="btn btn-secondary" onclick="loadKnowledgeExample()">
                         📋 Exemplo
                     </button>
                 </div>
                 <div id="kBulkResult" class="result-box" style="margin-top:10px"></div>
+            </div>
+
+            <div id="kt-index" class="inner-tab-content" style="display:none">
+                <h3 style="margin-bottom:6px">📤 Enviar Questões para o Pipeline RAG</h3>
+                <p class="hint">
+                    Questões já indexadas e sem modificações não serão reenviadas.
+                    Questões modificadas ou novas aparecem como pendentes automaticamente.
+                </p>
+
+                <!-- Seletor de concurso -->
+                <div class="filter-row" style="margin-bottom:16px">
+                    <div class="form-group">
+                        <label>Concurso</label>
+                        <select id="idxContestSelect" onchange="loadIndexStatus()">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="justify-content:flex-end">
+                        <label>&nbsp;</label>
+                        <div style="display:flex;gap:8px">
+                            <button class="btn btn-secondary btn-sm" onclick="loadIndexStatus()">
+                                🔄 Atualizar
+                            </button>
+                            <button class="btn btn-primary" id="btnIndexAll" onclick="indexAllPending()">
+                                🚀 Enviar Pendentes para IA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumo -->
+                <div id="idxSummary" style="margin-bottom:16px"></div>
+
+                <!-- Barra de progresso (oculta por padrão) -->
+                <div id="idxProgressBar" style="display:none;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:10px;
+                    padding:10px 14px;background:#eff6ff;
+                    border:1px solid #bfdbfe;border-radius:8px;
+                    font-size:13px;color:var(--primary)">
+                        <span class="mini-spinner"></span>
+                        <span>Indexando questões no pipeline RAG...</span>
+                    </div>
+                </div>
+
+                <!-- Resultado da última indexação -->
+                <div id="idxResultBox" class="result-box" style="display:none;margin-bottom:14px"></div>
+
+                <!-- Contador de pendentes -->
+                <div style="display:flex;align-items:center;gap:8px;
+                margin-bottom:10px;font-size:13px">
+                    <span style="font-weight:700">Questões pendentes:</span>
+                    <span id="idxPendingCount" style="font-size:18px;font-weight:800;color:var(--primary)">
+                        --
+                    </span>
+                </div>
+
+                <!-- Tabela de status -->
+                <div id="idxStatusContent">
+                    <p style="color:var(--text-muted)">
+                        Selecione um concurso para ver o status de indexação.
+                    </p>
+                </div>
             </div>
         </section>
 
@@ -620,8 +657,7 @@
             <div class="modal-header">
                 <div>
                     <h3 id="modalTopicName">Questões do Tópico</h3>
-                    <div id="modalTopicMeta"
-                         style="font-size:12px;opacity:.8;margin-top:2px"></div>
+                    <div id="modalTopicMeta" style="font-size:12px;opacity:.8;margin-top:2px"></div>
                 </div>
                 <button class="modal-close" onclick="closeModal()">✕</button>
             </div>
@@ -648,8 +684,7 @@
     </script>
 
     <!-- Modal de Revisão Manual de Limpeza -->
-    <div id="cleaningEditorModal" class="modal-overlay"
-         onclick="closeCleaningEditorOutside(event)">
+    <div id="cleaningEditorModal" class="modal-overlay" onclick="closeCleaningEditorOutside(event)">
         <div class="modal-box" style="max-width:860px">
             <div class="modal-header" style="background:#d97706">
                 <h3 id="cleaningEditorTitle">✏️ Revisão Manual de Limpeza</h3>
