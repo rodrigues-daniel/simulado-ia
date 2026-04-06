@@ -71,7 +71,17 @@
 
             <!-- Indicador de pré-carregamento -->
             <div id="prefetchIndicator" class="prefetch-indicator" style="display:none"></div>
+            <!-- Botão ouvir questão -->
+            <div class="action-row" style="margin-bottom:16px">
+                <button class="tts-btn"
+                        id="btnOuvirQuestao"
+                        onclick="ouvirQuestao()">
+                    🔊 Ouvir questão
+                </button>
 
+                <span class="tts-status" id="statusQuestao"></span>
+
+            </div>
             <div class="answer-buttons">
                 <button class="btn btn-certo"  onclick="answer(true)">✅ CERTO</button>
                 <button class="btn btn-errado" onclick="answer(false)">❌ ERRADO</button>
@@ -136,6 +146,8 @@
     <script src="/js/api.js"></script>
     <script src="/js/study.js"></script>
     <script src="/js/ia-admin.js"></script>  <!-- adicione esta linha -->
+    <script src="/js/tts.js"></script>
+
 </body>
 
 </html>

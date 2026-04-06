@@ -48,6 +48,14 @@
                     <label>Tempo Limite (minutos)</label>
                     <input type="number" id="timeLimit" value="30" min="5" max="180">
                 </div>
+                <div class="form-group">
+                    <label>Fonte das Questões</label>
+                    <select id="questionSource">
+                        <option value="ALL">📚 Todas as questões</option>
+                        <option value="MANUAL">📝 Apenas base manual</option>
+                        <option value="IA">🤖 Apenas geradas por IA</option>
+                    </select>
+                </div>
                 <button class="btn btn-primary btn-large" onclick="startSimulation()">
                     🚀 Iniciar Simulado
                 </button>

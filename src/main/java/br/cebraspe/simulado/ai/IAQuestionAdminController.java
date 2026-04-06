@@ -12,13 +12,16 @@ import java.util.Map;
 @RequestMapping("/api/ia-admin")
 public class IAQuestionAdminController {
 
-    private final IAQuestionAdminService service;
-    private final QuestionRepository     questionRepository;
+    private final IAQuestionAdminService    service;
+    private final QuestionRepository        questionRepository;
+    private final QuestionGeneratorService  questionGeneratorService; // ← adicione
 
     public IAQuestionAdminController(IAQuestionAdminService service,
-                                     QuestionRepository questionRepository) {
-        this.service            = service;
-        this.questionRepository = questionRepository;
+                                     QuestionRepository questionRepository,
+                                     QuestionGeneratorService questionGeneratorService) {
+        this.service                   = service;
+        this.questionRepository        = questionRepository;
+        this.questionGeneratorService  = questionGeneratorService;
     }
 
     // ── Stats gerais ────────────────────────────────────────────────────
@@ -84,4 +87,24 @@ public class IAQuestionAdminController {
             @PathVariable Long contestId) {
         return ResponseEntity.ok(service.getGlobalRagReport(contestId));
     }
+
+    @PostMapping("/topics/{topicId}/generate")
+    public ResponseEntity<Map<String, Object>> generateForTopic(
+            @PathVariable Long topicId,
+            @RequestBody GenerateRequest req) {
+        try {
+            var questions = questionGeneratorService.generateQuestions(
+                    topicId, req.count());
+            return ResponseEntity.ok(Map.of(
+                    "generated", questions.size(),
+                    "topicId",   topicId,
+                    "message",   questions.size() + " questões geradas e aguardando revisão."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    public record GenerateRequest(Integer count) {}
 }

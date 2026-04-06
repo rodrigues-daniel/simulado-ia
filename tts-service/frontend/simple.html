@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>ConcursoAI — TTS Player</title>
+    <style>
+        /* Herda variáveis CSS do sistema principal */
+        :root {
+          --primary:       #1a3c6b;
+          --primary-light: #2563eb;
+          --success:       #16a34a;
+          --danger:        #dc2626;
+          --warning:       #d97706;
+          --bg:            #f1f5f9;
+          --surface:       #ffffff;
+          --border:        #e2e8f0;
+          --text:          #1e293b;
+          --text-muted:    #64748b;
+          --radius:        10px;
+          --shadow:        0 2px 12px rgba(0,0,0,.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif;
+               background: var(--bg); color: var(--text); }
+
+        /* ── TTS Button ── */
+        .tts-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 20px;
+          border: 2px solid var(--border);
+          background: var(--surface);
+          color: var(--text);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all .2s;
+          user-select: none;
+        }
+        .tts-btn:hover   { border-color: var(--primary-light);
+                           background: #eff6ff; color: var(--primary-light); }
+        .tts-btn.playing { border-color: var(--success);
+                           background: #dcfce7; color: var(--success); }
+        .tts-btn.loading { border-color: var(--warning);
+                           background: #fef9c3; color: var(--warning);
+                           cursor: wait; }
+        .tts-btn.error   { border-color: var(--danger);
+                           background: #fee2e2; color: var(--danger); }
+        .tts-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* ── Mini Player ── */
+        .tts-mini-player {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          margin-top: 8px;
+          font-size: 12px;
+          color: var(--text-muted);
+        }
+        .tts-mini-player audio { height: 30px; flex: 1; }
+
+        /* ── Live Streaming indicator ── */
+        .tts-live {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 11px;
+          font-weight: 700;
+          color: var(--danger);
+        }
+        .tts-live-dot {
+          width: 8px; height: 8px;
+          background: var(--danger);
+          border-radius: 50%;
+          animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+          0%,100% { opacity: 1; }
+          50%      { opacity: .3; }
+        }
+
+        /* ── Spinner ── */
+        .tts-spinner {
+          width: 14px; height: 14px;
+          border: 2px solid rgba(0,0,0,.15);
+          border-top-color: currentColor;
+          border-radius: 50%;
+          animation: spin .7s linear infinite;
+          display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Demo page layout ── */
+        .demo { max-width: 720px; margin: 40px auto; padding: 0 20px; }
+        .demo-card {
+          background: var(--surface);
+          border-radius: var(--radius);
+          padding: 24px;
+          box-shadow: var(--shadow);
+          margin-bottom: 20px;
+        }
+        .demo-card h2 { font-size: 18px; margin-bottom: 6px; color: var(--primary); }
+        .demo-card p  { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+        .question-text {
+          font-size: 15px; line-height: 1.7;
+          padding: 16px;
+          background: var(--bg);
+          border-left: 4px solid var(--primary-light);
+          border-radius: 0 8px 8px 0;
+          margin-bottom: 12px;
+        }
+        .answer-text {
+          font-size: 14px; line-height: 1.7;
+          padding: 14px;
+          background: #f0fdf4;
+          border: 1px solid #86efac;
+          border-radius: 8px;
+          margin-bottom: 12px;
+          white-space: pre-wrap;
+        }
+        .action-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .tts-status { font-size: 12px; color: var(--text-muted); }
+
+        /* Toggle TTS */
+        .tts-toggle {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: var(--text-muted);
+        }
+        .tts-toggle input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     COMPONENTE REUTILIZÁVEL — inclua nas páginas study.html
+     e simulation.html do sistema principal
+     ════════════════════════════════════════════════════════════ -->
+
+<script>
+    // ═══════════════════════════════════════════════════════════════
+    // TTS CLIENT — inclua no api.js ou num arquivo tts.js separado
+    // ═══════════════════════════════════════════════════════════════
+
+    const TTS = {
+        BASE:    'http://localhost:8765',
+        enabled: true,
+        _currentAudio: null,
+        _config: { voice: 'bf_alice', speed: 1.0 },
+
+        // ── Carrega config do servidor ────────────────────────────────
+        async loadConfig() {
+            try {
+                const r = await fetch(`${this.BASE}/config`);
+                this._config = await r.json();
+                this.enabled = this._config.enabled;
+            } catch (_) {
+                console.warn('[TTS] Serviço indisponível.');
+                this.enabled = false;
+            }
+        },
+
+        // ── Para áudio atual ──────────────────────────────────────────
+        stop() {
+            if (this._currentAudio) {
+                this._currentAudio.pause();
+                this._currentAudio = null;
+            }
+        },
+
+        // ── Toca texto completo (com cache) ──────────────────────────
+        async speak(text, { voice, speed, onStart, onEnd, onError } = {}) {
+            if (!this.enabled || !text?.trim()) return;
+            this.stop();
+
+            const r = await fetch(`${this.BASE}/tts`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text,
+                    voice: voice || this._config.voice,
+                    speed: speed || this._config.speed,
+                }),
+            });
+
+            if (!r.ok) throw new Error(`TTS HTTP ${r.status}`);
+
+            const blob = await r.blob();
+            const url  = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            this._currentAudio = audio;
+
+            audio.onplay  = onStart;
+            audio.onended = () => { URL.revokeObjectURL(url); onEnd?.(); };
+            audio.onerror = onError;
+            await audio.play();
+        },
+
+        // ── Streaming em tempo real ───────────────────────────────────
+        async stream(text, { voice, speed, onStart, onEnd, onError } = {}) {
+            if (!this.enabled || !text?.trim()) return;
+            this.stop();
+
+            const r = await fetch(`${this.BASE}/stream`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text,
+                    voice: voice || this._config.voice,
+                    speed: speed || this._config.speed,
+                }),
+            });
+
+            if (!r.ok) throw new Error(`Stream HTTP ${r.status}`);
+
+            // Lê chunks e vai tocando conforme chegam
+            const reader = r.body.getReader();
+            const chunks = [];
+
+            onStart?.();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+
+                // Toca incrementalmente a cada novo chunk
+                const blob = new Blob(chunks, { type: 'audio/wav' });
+                const url  = URL.createObjectURL(blob);
+
+                if (!this._currentAudio) {
+                    const audio = new Audio(url);
+                    this._currentAudio = audio;
+                    audio.onended = () => { onEnd?.(); };
+                    await audio.play().catch(() => {});
+                } else {
+                    // Atualiza source sem interromper
+                    const prevTime = this._currentAudio.currentTime;
+                    this._currentAudio.src = url;
+                    this._currentAudio.currentTime = prevTime;
+                }
+            }
+        },
+
+        // ── Botão "Ouvir resposta" ────────────────────────────────────
+        createButton(text, { stream = false, label = '🔊 Ouvir', containerId } = {}) {
+            const btn = document.createElement('button');
+            btn.className   = 'tts-btn';
+            btn.innerHTML   = label;
+            btn.dataset.text = text;
+
+            const setLoading = () => {
+                btn.className   = 'tts-btn loading';
+                btn.innerHTML   = '<span class="tts-spinner"></span> Carregando...';
+                btn.disabled    = true;
+            };
+            const setPlaying = () => {
+                btn.className   = 'tts-btn playing';
+                btn.innerHTML   = stream
+                    ? '⏹ <span class="tts-live"><span class="tts-live-dot"></span>AO VIVO</span>'
+                    : '⏹ Pausar';
+                btn.disabled    = false;
+            };
+            const setIdle = () => {
+                btn.className = 'tts-btn';
+                btn.innerHTML = label;
+                btn.disabled  = false;
+            };
+            const setError = () => {
+                btn.className   = 'tts-btn error';
+                btn.innerHTML   = '⚠️ Erro';
+                btn.disabled    = false;
+                setTimeout(setIdle, 2000);
+            };
+
+            let playing = false;
+
+            btn.onclick = async () => {
+                if (playing) {
+                    this.stop();
+                    playing = false;
+                    setIdle();
+                    return;
+                }
+
+                playing = true;
+                setLoading();
+
+                try {
+                    const method = stream ? this.stream : this.speak;
+                    await method.call(this, text, {
+                        onStart: setPlaying,
+                        onEnd:   () => { playing = false; setIdle(); },
+                        onError: () => { playing = false; setError(); },
+                    });
+                } catch (e) {
+                    console.error('[TTS]', e);
+                    playing = false;
+                    setError();
+                }
+            };
+
+            // Anexa ao container se fornecido
+            if (containerId) {
+                document.getElementById(containerId)?.appendChild(btn);
+            }
+
+            return btn;
+        },
+    };
+
+    // ── Inicializa ao carregar ────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => TTS.loadConfig());
+</script>
+
+<!-- ════════════════════════════════════════════════════════════
+     DEMO — ilustra como integrar nas páginas do simulador
+     ════════════════════════════════════════════════════════════ -->
+<div class="demo">
+    <h1 style="color:var(--primary);margin-bottom:4px">⚖️ ConcursoAI</h1>
+    <p style="color:var(--text-muted);margin-bottom:24px;font-size:13px">
+        Módulo TTS — Ouvir Respostas
+    </p>
+
+    <!-- Controle global TTS -->
+    <div class="demo-card" style="padding:14px 20px;display:flex;
+         align-items:center;justify-content:space-between">
+        <label class="tts-toggle">
+            <input type="checkbox" id="ttsGlobalToggle" checked
+                   onchange="TTS.enabled = this.checked">
+            🔊 Leitura em voz alta
+        </label>
+        <span id="ttsVoiceLabel" style="font-size:12px;color:var(--text-muted)">
+            Alice (feminino)
+        </span>
+    </div>
+
+    <!-- Exemplo: Módulo de Estudo Inverso -->
+    <div class="demo-card">
+        <h2>📚 Estudo Inverso — Questão #42</h2>
+        <p>Direito Administrativo | TCU 2023</p>
+
+        <div class="question-text">
+            De acordo com o art. 37 da CF/88, a administração pública
+            obedecerá <strong>exclusivamente</strong> ao princípio da
+            legalidade, sendo os demais princípios meramente orientadores.
+        </div>
+
+        <!-- Botão ouvir questão -->
+        <div class="action-row" style="margin-bottom:16px">
+            <button class="tts-btn"
+                    id="btnOuvirQuestao"
+                    onclick="ouvirQuestao()">
+                🔊 Ouvir questão
+            </button>
+            <span class="tts-status" id="statusQuestao"></span>
+        </div>
+
+        <!-- Resposta (aparece após responder) -->
+        <div id="feedbackArea">
+            <div class="answer-text" id="answerText">
+                ❌ INCORRETO — Resposta correta: ERRADO
+
+                🎯 PEGADINHA: A palavra "exclusivamente" é a armadilha clássica.
+                O Art. 37 da CF/88 elenca CINCO princípios autônomos (LIMPE):
+                Legalidade, Impessoalidade, Moralidade, Publicidade e Eficiência.
+
+                📖 FUNDAMENTO: Art. 37, caput — "A administração pública...
+                obedecerá aos princípios de legalidade, impessoalidade,
+                moralidade, publicidade e eficiência."
+
+                ⚠️ ATENÇÃO: "exclusivamente" restringe algo que não deve
+                ser restrito. O Cebraspe usa esse recurso com frequência.
+
+                💡 DICA: Memorize o LIMPE — são sempre 5 princípios, nunca 1.
+            </div>
+
+            <!-- Ações de áudio -->
+            <div class="action-row">
+                <!-- Áudio completo (do cache se já gerado) -->
+                <button class="tts-btn" id="btnOuvirResposta"
+                        onclick="ouvirResposta(false)">
+                    🔊 Ouvir resposta
+                </button>
+
+                <!-- Streaming em tempo real -->
+                <button class="tts-btn" id="btnStreamResposta"
+                        onclick="ouvirResposta(true)">
+                    📡 Streaming ao vivo
+                </button>
+
+                <span class="tts-status" id="statusResposta"></span>
+            </div>
+
+            <!-- Player inline -->
+            <div id="ttsPlayer" class="tts-mini-player" style="display:none">
+                <span>🔊</span>
+                <audio id="audioPlayer" controls></audio>
+                <span id="playerInfo" style="font-size:11px;color:var(--text-muted)"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exemplo: IA gerando resposta ao vivo -->
+    <div class="demo-card">
+        <h2>🤖 IA gerando explicação</h2>
+        <p>Quando a IA gera a resposta, você pode ouvir ao vivo enquanto ela escreve.</p>
+
+        <textarea id="iaPrompt" rows="3"
+                  style="width:100%;padding:10px;border:1px solid var(--border);
+                   border-radius:8px;font-size:13px;resize:vertical;margin-bottom:10px"
+                  placeholder="Ex: Explique o princípio da legalidade no direito administrativo"></textarea>
+
+        <div class="action-row">
+            <button class="tts-btn" onclick="gerarComIA(false)">
+                🤖 Gerar resposta
+            </button>
+            <button class="tts-btn" onclick="gerarComIA(true)">
+                📡 Gerar + ouvir ao vivo
+            </button>
+        </div>
+
+        <div id="iaResult" style="margin-top:14px;display:none">
+            <div class="answer-text" id="iaText"></div>
+            <div class="action-row" style="margin-top:8px">
+                <button class="tts-btn" id="btnOuvirIA" onclick="ouvirIA()">
+                    🔊 Ouvir resposta da IA
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── Funções de integração com o simulador ─────────────────────────────────
+
+    let _currentAnswerText = '';
+    let _currentIAText     = '';
+
+    function getAnswerText() {
+        return document.getElementById('answerText')?.innerText || '';
+    }
+
+    async function ouvirQuestao() {
+        const text = `De acordo com o art. 37 da CF/88, a administração pública
+            obedecerá exclusivamente ao princípio da legalidade,
+            sendo os demais princípios meramente orientadores.`;
+        const btn    = document.getElementById('btnOuvirQuestao');
+        const status = document.getElementById('statusQuestao');
+
+        try {
+            btn.className   = 'tts-btn loading';
+            btn.innerHTML   = '<span class="tts-spinner"></span> Carregando...';
+            btn.disabled    = true;
+            status.textContent = 'Gerando áudio...';
+
+            await TTS.speak(text, {
+                onStart: () => {
+                    btn.className   = 'tts-btn playing';
+                    btn.innerHTML   = '⏹ Pausar';
+                    btn.disabled    = false;
+                    status.textContent = '▶ Reproduzindo questão';
+                },
+                onEnd: () => {
+                    btn.className   = 'tts-btn';
+                    btn.innerHTML   = '🔊 Ouvir questão';
+                    btn.disabled    = false;
+                    status.textContent = '';
+                },
+            });
+        } catch (e) {
+            btn.className   = 'tts-btn error';
+            btn.innerHTML   = '⚠️ Erro TTS';
+            btn.disabled    = false;
+            status.textContent = 'Serviço indisponível';
+            setTimeout(() => {
+                btn.className = 'tts-btn';
+                btn.innerHTML = '🔊 Ouvir questão';
+            }, 2000);
+        }
+    }
+
+    async function ouvirResposta(useStream) {
+        const text   = getAnswerText();
+        const btnId  = useStream ? 'btnStreamResposta' : 'btnOuvirResposta';
+        const btn    = document.getElementById(btnId);
+        const status = document.getElementById('statusResposta');
+        const player = document.getElementById('ttsPlayer');
+        const audio  = document.getElementById('audioPlayer');
+
+        if (!text) return;
+        _currentAnswerText = text;
+
+        const setLoading = () => {
+            btn.className   = 'tts-btn loading';
+            btn.innerHTML   = '<span class="tts-spinner"></span> '
+                            + (useStream ? 'Conectando stream...' : 'Gerando áudio...');
+            btn.disabled    = true;
+        };
+
+        const setPlaying = () => {
+            btn.className = 'tts-btn playing';
+            btn.innerHTML = useStream
+                ? '⏹ <span class="tts-live"><span class="tts-live-dot"></span>AO VIVO</span>'
+                : '⏹ Pausar';
+            btn.disabled  = false;
+            status.textContent = useStream ? '📡 Streaming ativo' : '▶ Reproduzindo';
+        };
+
+        const setIdle = () => {
+            btn.className   = 'tts-btn';
+            btn.innerHTML   = useStream ? '📡 Streaming ao vivo' : '🔊 Ouvir resposta';
+            btn.disabled    = false;
+            status.textContent = '';
+        };
+
+        try {
+            setLoading();
+
+            if (useStream) {
+                await TTS.stream(text, {
+                    onStart: setPlaying,
+                    onEnd:   setIdle,
+                });
+            } else {
+                // Áudio completo com player inline
+                const r = await fetch(`${TTS.BASE}/tts`, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ text }),
+                });
+                const blob  = await r.blob();
+                const url   = URL.createObjectURL(blob);
+                const cacheHit = r.headers.get('X-Cache') === 'HIT';
+                const dur   = r.headers.get('X-Duration');
+
+                audio.src   = url;
+                player.style.display = 'flex';
+                document.getElementById('playerInfo').textContent =
+                    cacheHit ? '⚡ Do cache' : `⏱ Gerado em ${dur}s`;
+
+                setPlaying();
+                audio.onended = setIdle;
+                await audio.play();
+            }
+
+        } catch (e) {
+            btn.className   = 'tts-btn error';
+            btn.innerHTML   = '⚠️ TTS Indisponível';
+            btn.disabled    = false;
+            setTimeout(setIdle, 2000);
+        }
+    }
+
+    async function gerarComIA(streamAudio) {
+        const prompt = document.getElementById('iaPrompt')?.value?.trim();
+        if (!prompt) return;
+
+        const resultDiv = document.getElementById('iaResult');
+        const textDiv   = document.getElementById('iaText');
+
+        resultDiv.style.display = 'none';
+        textDiv.textContent     = '⏳ Gerando resposta com IA...';
+        resultDiv.style.display = 'block';
+
+        try {
+            const r = await fetch(`${TTS.BASE}/ai`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    prompt,
+                    stream: streamAudio,
+                    voice:  TTS._config.voice,
+                }),
+            });
+
+            if (streamAudio) {
+                // Streaming: lê texto do header, toca áudio em paralelo
+                const aiText = r.headers.get('X-AI-Text') || '';
+                textDiv.textContent = aiText;
+                _currentIAText      = aiText;
+
+                // Toca stream
+                const reader = r.body.getReader();
+                const chunks = [];
+                const audio  = new Audio();
+                let started  = false;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    // Pula header TEXT:
+                    const str = new TextDecoder().decode(value);
+                    if (str.startsWith('TEXT:')) continue;
+
+                    chunks.push(value);
+                    const blob = new Blob(chunks, { type: 'audio/wav' });
+                    const url  = URL.createObjectURL(blob);
+
+                    if (!started) {
+                        audio.src = url;
+                        await audio.play().catch(() => {});
+                        started = true;
+                    }
+                }
+            } else {
+                const data = await r.json();
+                textDiv.textContent = data.text;
+                _currentIAText      = data.text;
+
+                if (data.audio_url) {
+                    const audio = document.getElementById('audioPlayer');
+                    const player = document.getElementById('ttsPlayer');
+                    audio.src = `${TTS.BASE}${data.audio_url.replace(/^.*\/audio\//, '/audio/')}`;
+                    player.style.display = 'flex';
+                    document.getElementById('playerInfo').textContent = '🤖 Resposta da IA';
+                }
+            }
+
+        } catch (e) {
+            textDiv.textContent = `Erro: ${e.message}`;
+        }
+    }
+
+    async function ouvirIA() {
+        if (_currentIAText) await TTS.speak(_currentIAText);
+    }
+</script>
+</body>
+</html>
