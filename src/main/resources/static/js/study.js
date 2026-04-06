@@ -369,6 +369,7 @@ function renderQuestion() {
     updatePrefetchIndicator();
 
     questionStartTime = Date.now();
+    setTimeout(applyTermHighlights, 50);
 }
 
 // ── Barra de progresso ─────────────────────────────────────────────────
@@ -683,8 +684,140 @@ function renderFeedback(result, userAnswer, isCorrect) {
         }
 
         renderActionBar(questions[currentIndex]?.id, result.isSaved);
+        setTimeout(applyTermHighlights, 100);
+        const q = questions[currentIndex];
+        if (q) generateMemoryTip(q, isCorrect);
 
     }, 350);
+}
+
+
+// ── Gera dica de memorização via IA ─────────────────────────────────
+async function generateMemoryTip(question, isCorrect) {
+    const tipBox = document.getElementById('memoryTipBox');
+    if (!tipBox) return;
+
+    // Só gera dica nas respostas erradas para não poluir o fluxo correto
+    if (isCorrect) { tipBox.style.display = 'none'; return; }
+
+    tipBox.style.display = 'block';
+    tipBox.innerHTML = `
+        <div class="memory-tip-header">🧠 Como memorizar</div>
+        <div class="memory-tip-loading">
+            <span class="mini-spinner"></span>
+            Gerando dica de memorização...
+        </div>`;
+
+    try {
+        const prompt = buildMemoryPrompt(question);
+        const r = await fetch('/api/knowledge/test-pipeline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pergunta: prompt,
+                materia: null,
+                topicoId: question.topicId,
+            }),
+        });
+
+        if (!r.ok) throw new Error('Pipeline indisponível');
+
+        const data = await r.json();
+        const tips = parseMemoryTips(data.resposta || '');
+        renderMemoryTips(tipBox, tips);
+
+    } catch (e) {
+        // Fallback: dicas estáticas baseadas nas trap keywords
+        const tips = buildStaticMemoryTips(question);
+        renderMemoryTips(tipBox, tips);
+    }
+}
+
+function buildMemoryPrompt(question) {
+    return `Para a seguinte questão Cebraspe que um aluno errou, gere:
+1. Uma dica prática de como memorizar o conceito correto (máx 2 linhas)
+2. Uma regra mnemônica ou associação visual simples
+3. Um alerta sobre a pegadinha para não repetir o erro
+
+Questão: ${question.statement}
+Gabarito: ${question.correctAnswer ? 'CERTO' : 'ERRADO'}
+${question.trapKeywords?.length ? `Palavras-armadilha: ${question.trapKeywords.join(', ')}` : ''}
+
+Responda em formato simples com os 3 itens numerados.`;
+}
+
+function parseMemoryTips(text) {
+    // Tenta extrair itens numerados
+    const lines = text.split('\n').filter(l => l.trim());
+    const tips = [];
+
+    lines.forEach(line => {
+        const match = line.match(/^[1-3][.)]\s*(.+)/);
+        if (match) tips.push(match[1].trim());
+    });
+
+    // Fallback: divide em parágrafos
+    if (tips.length < 2) {
+        return text.split('\n\n')
+            .filter(p => p.trim().length > 10)
+            .slice(0, 3);
+    }
+    return tips;
+}
+
+function buildStaticMemoryTips(question) {
+    const tips = [];
+    const traps = question.trapKeywords || [];
+
+    // Dica baseada em palavras-armadilha
+    if (traps.length) {
+        tips.push(
+            `⚠️ Cuidado com "${traps.join(', ')}" — ` +
+            `termos absolutos no Cebraspe quase sempre indicam questão ERRADA.`
+        );
+    }
+
+    // Dica baseada no gabarito
+    if (!question.correctAnswer) {
+        tips.push(
+            `🔴 Gabarito ERRADO: procure o detalhe que tornou a afirmação incorreta. ` +
+            `Geralmente é uma palavra que restringiu ou generalizou demais.`
+        );
+    } else {
+        tips.push(
+            `🟢 Gabarito CERTO: fixe o fundamento legal. ` +
+            `Leia o artigo de referência em voz alta 3 vezes.`
+        );
+    }
+
+    // Dica geral de revisão espaçada
+    tips.push(
+        `📅 Revisão espaçada: reveja esta questão em 1 dia, 3 dias e 7 dias. ` +
+        `Use a função "📌 Salvar questão" para não perder.`
+    );
+
+    return tips;
+}
+
+function renderMemoryTips(tipBox, tips) {
+    const icons = ['💡', '🔗', '📅'];
+    const labels = [
+        'Dica prática',
+        'Como memorizar',
+        'Revisão',
+    ];
+
+    tipBox.innerHTML = `
+        <div class="memory-tip-header">🧠 Como não esquecer</div>
+        ${tips.map((tip, i) => `
+            <div class="memory-tip-item">
+                <div class="memory-tip-icon">${icons[i] || '💡'}</div>
+                <div>
+                    <div class="memory-tip-label">${labels[i] || 'Dica'}</div>
+                    <div class="memory-tip-text">${escapeHtml(tip)}</div>
+                </div>
+            </div>
+        `).join('')}`;
 }
 
 // ── Próxima questão ─────────────────────────────────────────────────────
