@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+
+  tts-service:
+    build: .
+    container_name: kokoro_tts
+    ports:
+      - "8765:8000"
+    environment:
+      - TTS_DEFAULT_VOICE=bf_alice
+      - TTS_DEFAULT_SPEED=1.0
+      - TTS_LANG=p
+      - OLLAMA_BASE_URL=http://192.168.0.228:11434
+      - OLLAMA_MODEL=llama3.2:3b
+      - SIMULADOR_BASE_URL=http://192.168.0.228:8080
+      - LOG_LEVEL=INFO
+    volumes:
+      - tts_cache:/app/cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Ollama (descomente se quiser rodar junto) ─────────────────────────
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: tts_ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   environment:
+  #     - OLLAMA_KEEP_ALIVE=24h
+
+volumes:
+  tts_cache:
+  # ollama_data:

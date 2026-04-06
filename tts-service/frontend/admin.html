@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConcursoAI — Painel TTS</title>
+    <style>
+        :root {
+          --primary:       #1a3c6b;
+          --primary-light: #2563eb;
+          --secondary:     #0f766e;
+          --accent:        #f59e0b;
+          --danger:        #dc2626;
+          --success:       #16a34a;
+          --warning:       #d97706;
+          --bg:            #f1f5f9;
+          --surface:       #ffffff;
+          --surface2:      #f8fafc;
+          --border:        #e2e8f0;
+          --text:          #1e293b;
+          --text-muted:    #64748b;
+          --sidebar-width: 220px;
+          --radius:        10px;
+          --shadow:        0 2px 12px rgba(0,0,0,.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: 'Segoe UI', system-ui, sans-serif;
+          background: var(--bg);
+          color: var(--text);
+          display: flex;
+          min-height: 100vh;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+          width: var(--sidebar-width);
+          background: var(--primary);
+          min-height: 100vh;
+          position: fixed;
+          top: 0; left: 0;
+          display: flex;
+          flex-direction: column;
+          z-index: 100;
+        }
+        .sidebar-logo {
+          padding: 24px 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          border-bottom: 1px solid rgba(255,255,255,.1);
+          color: #fff;
+          font-size: 18px;
+          font-weight: 700;
+        }
+        .nav-links { list-style: none; padding: 12px 0; }
+        .nav-links li a {
+          display: block;
+          padding: 12px 20px;
+          color: rgba(255,255,255,.75);
+          text-decoration: none;
+          font-size: 14px;
+          transition: all .2s;
+        }
+        .nav-links li a:hover, .nav-links li a.active {
+          background: rgba(255,255,255,.12);
+          color: #fff;
+        }
+        .nav-links li a.active { font-weight: 700; }
+
+        /* ── Main ── */
+        .main { margin-left: var(--sidebar-width); flex: 1; padding: 28px; }
+        .page-header h1 { font-size: 26px; font-weight: 700; color: var(--primary); }
+        .page-header p  { color: var(--text-muted); margin-top: 4px; font-size: 13px; }
+
+        /* ── Cards ── */
+        .card {
+          background: var(--surface);
+          border-radius: var(--radius);
+          padding: 24px;
+          box-shadow: var(--shadow);
+          margin-bottom: 20px;
+        }
+        .card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+        .card-header h2 { font-size: 16px; font-weight: 700; }
+
+        /* ── Tabs ── */
+        .tabs {
+          display: flex; gap: 4px;
+          background: var(--surface);
+          padding: 6px;
+          border-radius: var(--radius);
+          box-shadow: var(--shadow);
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+        }
+        .tab {
+          padding: 9px 16px;
+          border: none;
+          background: transparent;
+          border-radius: 7px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--text-muted);
+          transition: all .15s;
+        }
+        .tab.active, .tab:hover { background: var(--primary); color: #fff; }
+
+        /* ── Buttons ── */
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 9px 18px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          border: none;
+          transition: all .15s;
+        }
+        .btn:hover     { opacity: .88; transform: translateY(-1px); }
+        .btn-primary   { background: var(--primary-light); color: #fff; }
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-success   { background: var(--success); color: #fff; }
+        .btn-danger    { background: var(--danger);  color: #fff; }
+        .btn-sm        { padding: 6px 12px; font-size: 12px; }
+        .btn:disabled  { opacity: .5; cursor: not-allowed; transform: none; }
+
+        /* ── Forms ── */
+        .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+        .form-group label { font-size: 12px; font-weight: 700; color: var(--text-muted);
+                            text-transform: uppercase; letter-spacing: .3px; }
+        textarea, select, input[type=text], input[type=number], input[type=range] {
+          padding: 9px 12px;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          font-size: 14px;
+          color: var(--text);
+          background: var(--surface);
+          outline: none;
+          width: 100%;
+          transition: border .15s;
+        }
+        textarea:focus, select:focus, input:focus { border-color: var(--primary-light); }
+        textarea { resize: vertical; min-height: 100px; font-family: inherit; }
+
+        /* ── Player ── */
+        .audio-player {
+          background: var(--surface2);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin: 10px 0;
+        }
+        .audio-player audio { flex: 1; height: 36px; }
+        .player-info { font-size: 12px; color: var(--text-muted); }
+
+        /* ── Metrics ── */
+        .metrics-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+        .metric-card {
+          background: var(--surface);
+          border-radius: var(--radius);
+          padding: 16px;
+          box-shadow: var(--shadow);
+          text-align: center;
+        }
+        .metric-value { font-size: 26px; font-weight: 800; color: var(--primary); }
+        .metric-label { font-size: 11px; color: var(--text-muted);
+                        text-transform: uppercase; margin-top: 3px; }
+
+        /* ── Status badges ── */
+        .badge {
+          display: inline-block;
+          padding: 3px 10px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .badge-green  { background: #dcfce7; color: #166534; }
+        .badge-red    { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fef9c3; color: #854d0e; }
+        .badge-blue   { background: #dbeafe; color: #1e40af; }
+
+        /* ── Logs ── */
+        .log-console {
+          background: #1e293b;
+          color: #e2e8f0;
+          border-radius: 8px;
+          padding: 14px;
+          font-family: 'Fira Code', monospace;
+          font-size: 12px;
+          max-height: 300px;
+          overflow-y: auto;
+          line-height: 1.6;
+        }
+        .log-line       { margin: 2px 0; }
+        .log-line.ok    { color: #86efac; }
+        .log-line.warn  { color: #fde047; }
+        .log-line.error { color: #fca5a5; }
+        .log-line.info  { color: #93c5fd; }
+
+        /* ── Streaming indicator ── */
+        .live-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: #fee2e2;
+          color: #991b1b;
+          padding: 4px 10px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .live-dot {
+          width: 8px; height: 8px;
+          background: var(--danger);
+          border-radius: 50%;
+          animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+
+        /* ── Toggle Switch ── */
+        .toggle-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 0;
+          border-bottom: 1px solid var(--border);
+        }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-size: 13px; font-weight: 600; }
+        .toggle-desc  { font-size: 11px; color: var(--text-muted); }
+        .switch {
+          position: relative;
+          display: inline-block;
+          width: 44px; height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+          position: absolute; cursor: pointer;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: #cbd5e1;
+          border-radius: 24px;
+          transition: .3s;
+        }
+        .slider:before {
+          content: '';
+          position: absolute;
+          height: 18px; width: 18px;
+          left: 3px; bottom: 3px;
+          background: #fff;
+          border-radius: 50%;
+          transition: .3s;
+        }
+        input:checked + .slider { background: var(--success); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* ── Range slider ── */
+        .range-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .range-row input[type=range] {
+          flex: 1;
+          padding: 0;
+          height: 6px;
+          border: none;
+          accent-color: var(--primary-light);
+        }
+        .range-value {
+          min-width: 40px;
+          text-align: center;
+          font-weight: 700;
+          color: var(--primary);
+        }
+
+        /* ── Knowledge list ── */
+        .knowledge-items { display: flex; flex-direction: column; gap: 8px; }
+        .knowledge-item {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 12px 14px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          transition: border-color .15s;
+        }
+        .knowledge-item:hover { border-color: var(--primary-light); }
+        .knowledge-item-text {
+          font-size: 13px;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .knowledge-item-meta { font-size: 11px; color: var(--text-muted); }
+        .action-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+        /* ── Spinner ── */
+        .spinner {
+          width: 18px; height: 18px;
+          border: 3px solid rgba(0,0,0,.1);
+          border-top-color: var(--primary-light);
+          border-radius: 50%;
+          animation: spin .7s linear infinite;
+          display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+    <div class="sidebar-logo">🔊 TTS Studio</div>
+    <ul class="nav-links">
+        <li><a href="#" onclick="showTab('tts')"     class="active" id="nav-tts">🎙️ Gerador TTS</a></li>
+        <li><a href="#" onclick="showTab('stream')"             id="nav-stream">📡 Streaming</a></li>
+        <li><a href="#" onclick="showTab('config')"             id="nav-config">⚙️ Configurações</a></li>
+        <li><a href="#" onclick="showTab('ai')"                 id="nav-ai">🤖 IA + TTS</a></li>
+        <li><a href="#" onclick="showTab('knowledge')"          id="nav-knowledge">🧠 Base RAG</a></li>
+        <li><a href="#" onclick="showTab('debug')"              id="nav-debug">🐛 Debug</a></li>
+        <li><a href="/index.html" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.1)">
+            ← Voltar ao Sistema
+        </a></li>
+    </ul>
+</nav>
+
+<main class="main">
+    <div class="page-header" style="margin-bottom:24px">
+        <h1>🔊 ConcursoAI TTS Studio</h1>
+        <p>Painel avançado de Text-to-Speech com Kokoro + Ollama</p>
+    </div>
+
+    <!-- Métricas do serviço -->
+    <div class="metrics-row" id="metricsRow">
+        <div class="metric-card">
+            <div class="metric-value" id="mStatus">--</div>
+            <div class="metric-label">Status</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="mCache">--</div>
+            <div class="metric-label">Cache (MB)</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="mVoice">--</div>
+            <div class="metric-label">Voz ativa</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="mKokoro">--</div>
+            <div class="metric-label">Kokoro</div>
+        </div>
+    </div>
+
+    <!-- ══ TAB: TTS ════════════════════════════════════════ -->
+    <div id="tab-tts" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <h2>🎙️ Gerador de Áudio</h2>
+                <span class="badge badge-blue" id="ttsEngineLabel">Kokoro TTS</span>
+            </div>
+
+            <div class="form-group">
+                <label>Texto para sintetizar</label>
+                <textarea id="ttsText" rows="5"
+                          placeholder="Digite ou cole o texto aqui...
+Exemplo: Art. 37. A administração pública obedecerá aos princípios de legalidade, impessoalidade, moralidade, publicidade e eficiência."></textarea>
+                <div style="text-align:right;font-size:12px;color:var(--text-muted);margin-top:3px">
+                    <span id="charCount">0</span> caracteres
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                <div class="form-group">
+                    <label>Voz</label>
+                    <select id="ttsVoice" onchange="onConfigChange()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Velocidade: <span id="speedLabel">1.0x</span></label>
+                    <div class="range-row">
+                        <input type="range" id="ttsSpeed" min="0.5" max="2.0" step="0.1"
+                               value="1.0" oninput="onSpeedChange(this.value)">
+                        <span class="range-value" id="speedVal">1.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button class="btn btn-primary" onclick="generateTTS()" id="btnGenerate">
+                    🎵 Gerar Áudio
+                </button>
+                <button class="btn btn-secondary" onclick="clearTTS()">
+                    🗑️ Limpar
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="loadExample()">
+                    📋 Exemplo
+                </button>
+            </div>
+
+            <!-- Player -->
+            <div id="ttsPlayerArea" style="display:none;margin-top:14px">
+                <div class="audio-player">
+                    <span>🔊</span>
+                    <audio id="mainAudio" controls></audio>
+                    <div class="player-info">
+                        <div id="audioInfo"></div>
+                        <div id="audioDuration"></div>
+                    </div>
+                </div>
+                <div class="action-row" style="margin-top:8px">
+                    <button class="btn btn-secondary btn-sm" onclick="downloadAudio()">
+                        💾 Download WAV
+                    </button>
+                    <button class="btn btn-secondary btn-sm" onclick="copyAudioUrl()">
+                        🔗 Copiar URL
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ TAB: STREAMING ══════════════════════════════════ -->
+    <div id="tab-stream" class="tab-content" style="display:none">
+        <div class="card">
+            <div class="card-header">
+                <h2>📡 Streaming em Tempo Real</h2>
+                <span id="streamStatus" class="badge badge-yellow">Inativo</span>
+            </div>
+
+            <div class="form-group">
+                <label>Texto para streaming</label>
+                <textarea id="streamText" rows="6"
+                          placeholder="Textos longos funcionam melhor no streaming.
+O áudio começa antes de terminar a geração."></textarea>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                <div class="form-group">
+                    <label>Voz</label>
+                    <select id="streamVoice"></select>
+                </div>
+                <div class="form-group">
+                    <label>Velocidade</label>
+                    <input type="number" id="streamSpeed" value="1.0"
+                           min="0.5" max="2.0" step="0.1">
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button class="btn btn-primary" onclick="startStream()" id="btnStream">
+                    📡 Iniciar Streaming
+                </button>
+                <button class="btn btn-danger" onclick="stopStream()"
+                        id="btnStopStream" style="display:none">
+                    ⏹ Parar
+                </button>
+            </div>
+
+            <div id="streamPlayerArea" style="margin-top:14px;display:none">
+                <div class="audio-player">
+                    <div class="live-badge">
+                        <div class="live-dot"></div>
+                        AO VIVO
+                    </div>
+                    <audio id="streamAudio" controls style="flex:1"></audio>
+                </div>
+                <div id="streamProgress" style="margin-top:8px;font-size:12px;
+                     color:var(--text-muted)"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ TAB: CONFIG ════════════════════════════════════ -->
+    <div id="tab-config" class="tab-content" style="display:none">
+        <div class="card">
+            <div class="card-header">
+                <h2>⚙️ Configurações em Tempo Real</h2>
+                <button class="btn btn-primary btn-sm" onclick="saveConfig()">
+                    💾 Salvar
+                </button>
+            </div>
+
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">TTS Ativado</div>
+                    <div class="toggle-desc">
+                        Desative em caso de problemas de performance
+                    </div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="cfgEnabled" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div style="margin-top:16px">
+                <div class="form-group">
+                    <label>Voz padrão</label>
+                    <select id="cfgVoice"></select>
+                </div>
+
+                <div class="form-group">
+                    <label>Velocidade padrão: <span id="cfgSpeedLabel">1.0x</span></label>
+                    <div class="range-row">
+                        <input type="range" id="cfgSpeed" min="0.5" max="2.0"
+                               step="0.1" value="1.0"
+                               oninput="document.getElementById('cfgSpeedLabel').textContent
+                                        = this.value + 'x'">
+                        <span class="range-value" id="cfgSpeedVal">1.0</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Idioma / Modelo de voz</label>
+                    <select id="cfgLang">
+                        <option value="p">Português (Kokoro pt)</option>
+                        <option value="a">Inglês Americano</option>
+                        <option value="b">Inglês Britânico</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+                <h3 style="font-size:14px;margin-bottom:10px">🗑️ Gerenciar Cache</h3>
+                <div class="action-row">
+                    <button class="btn btn-secondary" onclick="loadCacheStats()">
+                        📊 Estatísticas
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="clearCache()">
+                        🗑️ Limpar Cache
+                    </button>
+                </div>
+                <div id="cacheStatsArea" style="margin-top:10px;font-size:13px;
+                     color:var(--text-muted)"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ TAB: IA ═══════════════════════════════════════ -->
+    <div id="tab-ai" class="tab-content" style="display:none">
+        <div class="card">
+            <div class="card-header">
+                <h2>🤖 IA + TTS</h2>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <label class="switch">
+                        <input type="checkbox" id="aiTtsEnabled" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span style="font-size:12px;color:var(--text-muted)">TTS na IA</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Modelo Ollama</label>
+                <input type="text" id="aiModel" value="llama3.2:3b"
+                       placeholder="llama3.2:3b">
+            </div>
+
+            <div class="form-group">
+                <label>Prompt</label>
+                <textarea id="aiPrompt" rows="4"
+                          placeholder="Ex: Explique o princípio da legalidade na administração pública segundo o Cebraspe."></textarea>
+            </div>
+
+            <div class="action-row" style="margin-bottom:14px">
+                <button class="btn btn-primary" onclick="runAI(false)" id="btnAI">
+                    🤖 Gerar com IA
+                </button>
+                <button class="btn btn-success" onclick="runAI(true)" id="btnAIStream">
+                    📡 Gerar + Ouvir ao vivo
+                </button>
+            </div>
+
+            <div id="aiResultArea" style="display:none">
+                <div style="font-size:12px;font-weight:700;color:var(--text-muted);
+                            text-transform:uppercase;margin-bottom:6px">
+                    Resposta da IA
+                </div>
+                <div id="aiText" style="background:var(--surface2);padding:14px;
+                     border-radius:8px;font-size:13px;line-height:1.7;
+                     white-space:pre-wrap;margin-bottom:10px;
+                     border-left:3px solid var(--primary-light)"></div>
+
+                <div class="action-row">
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="speakAIResponse()">
+                        🔊 Ouvir resposta
+                    </button>
+                    <span id="aiAudioInfo" style="font-size:12px;color:var(--text-muted)"></span>
+                </div>
+
+                <div id="aiAudioPlayer" style="display:none;margin-top:10px">
+                    <div class="audio-player">
+                        <span>🤖</span>
+                        <audio id="aiAudio" controls></audio>
+                        <div class="player-info" id="aiPlayerInfo"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ TAB: BASE RAG ══════════════════════════════════ -->
+    <div id="tab-knowledge" class="tab-content" style="display:none">
+        <div class="card">
+            <div class="card-header">
+                <h2>🧠 Base de Conhecimento — Ouvir em Áudio</h2>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">
+                Busque na base RAG e ouça os resultados em voz.
+            </p>
+
+            <div class="action-row" style="margin-bottom:14px">
+                <input type="text" id="kQuery"
+                       placeholder="Buscar na base de conhecimento..."
+                       style="flex:1"
+                       onkeydown="if(event.key==='Enter') searchKnowledge()">
+                <button class="btn btn-primary" onclick="searchKnowledge()">
+                    🔍 Buscar
+                </button>
+            </div>
+
+            <div id="knowledgeResults" class="knowledge-items">
+                <p style="color:var(--text-muted);font-size:13px">
+                    Faça uma busca para ouvir os resultados.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ TAB: DEBUG ════════════════════════════════════ -->
+    <div id="tab-debug" class="tab-content" style="display:none">
+        <div class="card">
+            <div class="card-header">
+                <h2>🐛 Debug & Logs</h2>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="clearLogs()">🗑️ Limpar</button>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="checkHealth()">🔄 Health check</button>
+                </div>
+            </div>
+
+            <!-- Estatísticas em tempo real -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);
+                        gap:10px;margin-bottom:16px" id="debugStats">
+                <div style="background:var(--surface2);padding:12px;
+                            border-radius:8px;font-size:13px">
+                    <div style="font-weight:700;margin-bottom:4px">
+                        ⏱ Último tempo
+                    </div>
+                    <div id="dbgLastTime" style="font-size:20px;font-weight:800;
+                         color:var(--primary)">--</div>
+                    <div style="font-size:11px;color:var(--text-muted)">segundos</div>
+                </div>
+                <div style="background:var(--surface2);padding:12px;border-radius:8px;
+                            font-size:13px">
+                    <div style="font-weight:700;margin-bottom:4px">
+                        📦 Último tamanho
+                    </div>
+                    <div id="dbgLastSize" style="font-size:20px;font-weight:800;
+                         color:var(--primary)">--</div>
+                    <div style="font-size:11px;color:var(--text-muted)">KB</div>
+                </div>
+                <div style="background:var(--surface2);padding:12px;border-radius:8px;
+                            font-size:13px">
+                    <div style="font-weight:700;margin-bottom:4px">
+                        ⚡ Cache
+                    </div>
+                    <div id="dbgCache" style="font-size:20px;font-weight:800;
+                         color:var(--primary)">--</div>
+                    <div style="font-size:11px;color:var(--text-muted)">HIT/MISS</div>
+                </div>
+            </div>
+
+            <!-- Console de logs -->
+            <div class="log-console" id="logConsole">
+                <div class="log-line info">
+                    [TTS Studio] Console iniciado. Aguardando requisições...
+                </div>
+            </div>
+
+            <!-- Teste rápido de endpoints -->
+            <div style="margin-top:16px">
+                <h3 style="font-size:14px;margin-bottom:10px">🧪 Teste de Endpoints</h3>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="testEndpoint('GET', '/health')">
+                        GET /health
+                    </button>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="testEndpoint('GET', '/voices')">
+                        GET /voices
+                    </button>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="testEndpoint('GET', '/cache/stats')">
+                        GET /cache/stats
+                    </button>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="testEndpoint('GET', '/config')">
+                        GET /config
+                    </button>
+                </div>
+                <div id="endpointResult" style="margin-top:10px;font-size:12px;
+                     font-family:monospace;background:var(--surface2);
+                     padding:10px;border-radius:8px;display:none;
+                     white-space:pre;max-height:150px;overflow:auto"></div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // ════════════════════════════════════════════════════════════
+    // TTS Admin — JavaScript
+    // ════════════════════════════════════════════════════════════
+
+    const TTS_URL = 'http://localhost:8765';
+    const SIM_URL = 'http://localhost:8080';
+
+    let _voices    = {};
+    let _config    = {};
+    let _audioBlob = null;
+    let _aiText    = '';
+    let _streamReader = null;
+
+    // ── Inicialização ─────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkHealth();
+        await loadVoices();
+        await loadConfig();
+        populateVoiceSelects();
+        watchCharCount();
+    });
+
+    async function checkHealth() {
+        try {
+            const r    = await fetch(`${TTS_URL}/health`);
+            const data = await r.json();
+            _config    = data;
+
+            document.getElementById('mStatus').textContent =
+                data.status === 'ok' ? '✅ Online' : '❌ Offline';
+            document.getElementById('mKokoro').textContent =
+                data.kokoro ? '✅' : '⚠️ Mock';
+            document.getElementById('mVoice').textContent =
+                (data.voice || '--').replace('bf_','').replace('bm_','');
+
+            await loadCacheStats(true);
+            log(`Health OK — Kokoro: ${data.kokoro} | TTS: ${data.tts_enabled}`, 'ok');
+
+        } catch (e) {
+            document.getElementById('mStatus').textContent = '❌ Offline';
+            log(`Health FAIL: ${e.message}`, 'error');
+        }
+    }
+
+    async function loadVoices() {
+        try {
+            const r  = await fetch(`${TTS_URL}/voices`);
+            const d  = await r.json();
+            _voices  = d.voices || {};
+        } catch (_) {}
+    }
+
+    async function loadConfig() {
+        try {
+            const r = await fetch(`${TTS_URL}/config`);
+            _config  = await r.json();
+
+            const cfgSpeed   = document.getElementById('cfgSpeed');
+            const cfgEnabled = document.getElementById('cfgEnabled');
+
+            if (cfgSpeed)   cfgSpeed.value   = _config.speed || 1.0;
+            if (cfgEnabled) cfgEnabled.checked = _config.enabled !== false;
+
+            document.getElementById('cfgSpeedLabel').textContent =
+                (_config.speed || 1.0) + 'x';
+
+        } catch (_) {}
+    }
+
+    function populateVoiceSelects() {
+        const opts = Object.entries(_voices).map(([id, v]) =>
+            `<option value="${id}">${v.label}</option>`
+        ).join('');
+
+        ['ttsVoice', 'streamVoice', 'cfgVoice'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.innerHTML = opts || '<option value="bf_alice">Alice (pt)</option>';
+                if (_config.voice) el.value = _config.voice;
+            }
+        });
+    }
+
+    // ── Tabs ──────────────────────────────────────────────────────────────
+    function showTab(name) {
+        document.querySelectorAll('.tab-content')
+                .forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.nav-links a')
+                .forEach(a => a.classList.remove('active'));
+
+        document.getElementById(`tab-${name}`).style.display = 'block';
+        document.getElementById(`nav-${name}`)?.classList.add('active');
+
+        event.preventDefault();
+    }
+
+    // ── Gerador TTS ────────────────────────────────────────────────────────
+    function watchCharCount() {
+        document.getElementById('ttsText')?.addEventListener('input', function () {
+            document.getElementById('charCount').textContent = this.value.length;
+        });
+    }
+
+    function onSpeedChange(val) {
+        document.getElementById('speedVal').textContent   = val;
+        document.getElementById('speedLabel').textContent = val + 'x';
+    }
+
+    function onConfigChange() {}
+
+    function loadExample() {
+        document.getElementById('ttsText').value =
+            'Art. 37. A administração pública direta e indireta de qualquer dos '  +
+            'Poderes da União, dos Estados, do Distrito Federal e dos Municípios ' +
+            'obedecerá aos princípios de legalidade, impessoalidade, moralidade, '+
+            'publicidade e eficiência.';
+        document.getElementById('charCount').textContent =
+            document.getElementById('ttsText').value.length;
+    }
+
+    function clearTTS() {
+        document.getElementById('ttsText').value = '';
+        document.getElementById('charCount').textContent = '0';
+        document.getElementById('ttsPlayerArea').style.display = 'none';
+        _audioBlob = null;
+    }
+
+    async function generateTTS() {
+        const text  = document.getElementById('ttsText').value.trim();
+        const voice = document.getElementById('ttsVoice').value;
+        const speed = parseFloat(document.getElementById('ttsSpeed').value);
+        const btn   = document.getElementById('btnGenerate');
+
+        if (!text) { alert('Digite um texto.'); return; }
+
+        btn.innerHTML = '<span class="spinner"></span> Gerando...';
+        btn.disabled  = true;
+        log(`POST /tts | ${text.length} chars | voice=${voice} speed=${speed}`, 'info');
+
+        const t0 = Date.now();
+
+        try {
+            const r = await fetch(`${TTS_URL}/tts`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ text, voice, speed }),
+            });
+
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+            _audioBlob = await r.blob();
+            const url  = URL.createObjectURL(_audioBlob);
+            const elapsed   = ((Date.now() - t0) / 1000).toFixed(2);
+            const cacheHit  = r.headers.get('X-Cache') === 'HIT';
+            const sizeKb    = (_audioBlob.size / 1024).toFixed(1);
+
+            // Atualiza player
+            const audio = document.getElementById('mainAudio');
+            audio.src   = url;
+            document.getElementById('ttsPlayerArea').style.display = 'block';
+            document.getElementById('audioInfo').textContent =
+                `${sizeKb} KB | ${cacheHit ? '⚡ Cache HIT' : `⏱ ${elapsed}s`}`;
+
+            // Atualiza debug
+            document.getElementById('dbgLastTime').textContent = elapsed;
+            document.getElementById('dbgLastSize').textContent = sizeKb;
+            document.getElementById('dbgCache').textContent    = cacheHit ? 'HIT' : 'MISS';
+
+            log(`TTS OK — ${elapsed}s | ${sizeKb}KB | ${cacheHit ? 'HIT' : 'MISS'}`, 'ok');
+            await audio.play();
+
+        } catch (e) {
+            log(`TTS ERRO: ${e.message}`, 'error');
+            alert(`Erro: ${e.message}`);
+        } finally {
+            btn.innerHTML = '🎵 Gerar Áudio';
+            btn.disabled  = false;
+        }
+    }
+
+    function downloadAudio() {
+        if (!_audioBlob) return;
+        const a   = document.createElement('a');
+        a.href    = URL.createObjectURL(_audioBlob);
+        a.download = `tts_${Date.now()}.wav`;
+        a.click();
+    }
+
+    function copyAudioUrl() {
+        const text = document.getElementById('ttsText').value.trim();
+        if (!text) return;
+        const url = `${TTS_URL}/tts`;
+        navigator.clipboard.writeText(url);
+        log('URL copiada: ' + url, 'info');
+    }
+
+    // ── Streaming ──────────────────────────────────────────────────────────
+    async function startStream() {
+        const text   = document.getElementById('streamText').value.trim();
+        const voice  = document.getElementById('streamVoice').value;
+        const speed  = parseFloat(document.getElementById('streamSpeed').value);
+        const status = document.getElementById('streamStatus');
+        const btn    = document.getElementById('btnStream');
+        const btnStop= document.getElementById('btnStopStream');
+
+        if (!text) { alert('Digite um texto.'); return; }
+
+        btn.style.display     = 'none';
+        btnStop.style.display = 'inline-flex';
+        status.className      = 'badge badge-red';
+        status.textContent    = '🔴 Streaming';
+        document.getElementById('streamPlayerArea').style.display = 'block';
+
+        log(`POST /stream | ${text.length} chars | voice=${voice}`, 'info');
+
+        try {
+            const r = await fetch(`${TTS_URL}/stream`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ text, voice, speed }),
+            });
+
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+            _streamReader  = r.body.getReader();
+            const chunks   = [];
+            const audio    = document.getElementById('streamAudio');
+            let   started  = false;
+            let   bytes    = 0;
+
+            while (true) {
+                const { done, value } = await _streamReader.read();
+                if (done) break;
+
+                chunks.push(value);
+                bytes += value.length;
+
+                const blob = new Blob(chunks, { type: 'audio/wav' });
+                const url  = URL.createObjectURL(blob);
+
+                if (!started) {
+                    audio.src = url;
+                    await audio.play().catch(() => {});
+                    started   = true;
+                    log('Streaming iniciado — áudio tocando', 'ok');
+                }
+
+                document.getElementById('streamProgress').textContent =
+                    `📥 ${(bytes / 1024).toFixed(1)} KB recebidos`;
+            }
+
+            log(`Streaming concluído — ${(bytes / 1024).toFixed(1)} KB total`, 'ok');
+
+        } catch (e) {
+            if (e.name !== 'AbortError') {
+                log(`Stream ERRO: ${e.message}`, 'error');
+            }
+        } finally {
+            stopStream();
+        }
+    }
+
+    function stopStream() {
+        _streamReader?.cancel();
+        _streamReader = null;
+        document.getElementById('btnStream').style.display     = 'inline-flex';
+        document.getElementById('btnStopStream').style.display = 'none';
+        document.getElementById('streamStatus').className      = 'badge badge-yellow';
+        document.getElementById('streamStatus').textContent    = 'Inativo';
+        log('Stream parado', 'warn');
+    }
+
+    // ── Configuração ───────────────────────────────────────────────────────
+    async function saveConfig() {
+        const enabled = document.getElementById('cfgEnabled').checked;
+        const voice   = document.getElementById('cfgVoice').value;
+        const speed   = parseFloat(document.getElementById('cfgSpeed').value);
+        const lang    = document.getElementById('cfgLang').value;
+
+        try {
+            const r = await fetch(`${TTS_URL}/config`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ enabled, voice, speed, lang }),
+            });
+            const d = await r.json();
+            log(`Config salva: ${JSON.stringify(d.config)}`, 'ok');
+            await checkHealth();
+        } catch (e) {
+            log(`Config ERRO: ${e.message}`, 'error');
+        }
+    }
+
+    async function loadCacheStats(silent = false) {
+        try {
+            const r = await fetch(`${TTS_URL}/cache/stats`);
+            const d = await r.json();
+            document.getElementById('mCache').textContent = d.total_mb + 'MB';
+            const area = document.getElementById('cacheStatsArea');
+            if (area) {
+                area.textContent =
+                    `${d.files} arquivos • ${d.total_mb} MB em disco`;
+            }
+            if (!silent) log(`Cache: ${d.files} arquivos | ${d.total_mb} MB`, 'info');
+        } catch (_) {}
+    }
+
+    async function clearCache() {
+        if (!confirm('Limpar todo o cache de áudio?')) return;
+        try {
+            const r = await fetch(`${TTS_URL}/cache`, { method: 'DELETE' });
+            const d = await r.json();
+            log(`Cache limpo: ${d.removed} arquivos removidos`, 'warn');
+            await loadCacheStats();
+        } catch (e) {
+            log(`Clear cache ERRO: ${e.message}`, 'error');
+        }
+    }
+
+    // ── IA + TTS ───────────────────────────────────────────────────────────
+    async function runAI(withStream) {
+        const prompt  = document.getElementById('aiPrompt').value.trim();
+        const model   = document.getElementById('aiModel').value.trim();
+        const ttsOn   = document.getElementById('aiTtsEnabled').checked;
+        const btnAI   = document.getElementById('btnAI');
+        const btnAIS  = document.getElementById('btnAIStream');
+        const area    = document.getElementById('aiResultArea');
+        const textDiv = document.getElementById('aiText');
+
+        if (!prompt) { alert('Digite um prompt.'); return; }
+
+        btnAI.disabled  = true;
+        btnAIS.disabled = true;
+        area.style.display  = 'block';
+        textDiv.textContent = '⏳ Gerando resposta...';
+
+        log(`POST /ai | stream=${withStream} | model=${model}`, 'info');
+        const t0 = Date.now();
+
+        try {
+            const r = await fetch(`${TTS_URL}/ai`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                    prompt,
+                    stream: withStream && ttsOn,
+                    model,
+                }),
+            });
+
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+            if (withStream && ttsOn) {
+                // Streaming: texto no header, áudio no body
+                const aiText = r.headers.get('X-AI-Text') || '(texto no stream)';
+                textDiv.textContent = aiText;
+                _aiText             = aiText;
+
+                const reader = r.body.getReader();
+                const chunks = [];
+                const audio  = document.getElementById('aiAudio');
+                let   started = false;
+
+                document.getElementById('aiAudioPlayer').style.display = 'block';
+                document.getElementById('aiPlayerInfo').textContent    =
+                    '📡 Streaming ao vivo';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    // Pula linha TEXT:
+                    const str = new TextDecoder().decode(value);
+                    if (str.startsWith('TEXT:')) continue;
+
+                    chunks.push(value);
+                    const blob = new Blob(chunks, { type: 'audio/wav' });
+                    const url  = URL.createObjectURL(blob);
+
+                    if (!started) {
+                        audio.src = url;
+                        await audio.play().catch(() => {});
+                        started   = true;
+                    }
+                }
+                log(`AI+Stream OK — ${((Date.now()-t0)/1000).toFixed(2)}s`, 'ok');
+
+            } else {
+                const data = await r.json();
+                textDiv.textContent = data.text;
+                _aiText             = data.text;
+
+                if (data.audio_url && ttsOn) {
+                    const audio = document.getElementById('aiAudio');
+                    audio.src   = `${TTS_URL}${data.audio_url
+                        .replace(/^.*\/audio\//, '/audio/')}`;
+                    document.getElementById('aiAudioPlayer').style.display = 'block';
+                    document.getElementById('aiPlayerInfo').textContent    =
+                        `🤖 ${data.model} | ${data.voice}`;
+                }
+
+                log(`AI OK — ${((Date.now()-t0)/1000).toFixed(2)}s | `+
+                    `${data.text.length} chars`, 'ok');
+            }
+
+        } catch (e) {
+            textDiv.textContent = `Erro: ${e.message}`;
+            log(`AI ERRO: ${e.message}`, 'error');
+        } finally {
+            btnAI.disabled  = false;
+            btnAIS.disabled = false;
+        }
+    }
+
+    async function speakAIResponse() {
+        if (!_aiText) return;
+        log(`Ouvindo resposta IA: ${_aiText.length} chars`, 'info');
+        try {
+            const r = await fetch(`${TTS_URL}/tts`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ text: _aiText }),
+            });
+            const blob = await r.blob();
+            const url  = URL.createObjectURL(blob);
+            const audio = document.getElementById('aiAudio');
+            document.getElementById('aiAudioPlayer').style.display = 'block';
+            audio.src  = url;
+            await audio.play();
+        } catch (e) {
+            log(`Ouvir IA ERRO: ${e.message}`, 'error');
+        }
+    }
+
+    // ── Base RAG ───────────────────────────────────────────────────────────
+    async function searchKnowledge() {
+        const query = document.getElementById('kQuery').value.trim();
+        if (!query) return;
+
+        const container = document.getElementById('knowledgeResults');
+        container.innerHTML =
+            '<p style="color:var(--text-muted)">🔍 Buscando...</p>';
+
+        try {
+            const r = await fetch(
+                `${SIM_URL}/api/knowledge/search?query=${encodeURIComponent(query)}&topK=5`
+            );
+            const results = await r.json();
+
+            if (!results?.length) {
+                container.innerHTML =
+                    '<p style="color:var(--text-muted)">Nenhum resultado.</p>';
+                return;
+            }
+
+            container.innerHTML = results.map((r, i) => `
+                <div class="knowledge-item">
+                    <div style="flex:1;min-width:0">
+                        <div class="knowledge-item-text" title="${r.conteudo}">
+                            #${i+1} — ${(r.conteudo || '').substring(0, 120)}...
+                        </div>
+                        <div class="knowledge-item-meta">
+                            ${r.materia || 'Sem matéria'} |
+                            ${r.fonte   || 'Sem fonte'} |
+                            ${Math.round((r.similarity||0)*100)}% similar
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="speakKnowledge(\`${
+                                (r.conteudo||'').replace(/`/g,'\'')
+                            }\`)">
+                        🔊
+                    </button>
+                </div>
+            `).join('');
+
+            log(`RAG search: ${results.length} resultados para "${query}"`, 'ok');
+
+        } catch (e) {
+            container.innerHTML = `<p style="color:var(--danger)">Erro: ${e.message}</p>`;
+            log(`RAG search ERRO: ${e.message}`, 'error');
+        }
+    }
+
+    async function speakKnowledge(text) {
+        log(`Ouvindo chunk RAG: ${text.length} chars`, 'info');
+        try {
+            const r = await fetch(`${TTS_URL}/tts`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ text }),
+            });
+            const blob  = await r.blob();
+            const url   = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            await audio.play();
+        } catch (e) {
+            log(`Speak RAG ERRO: ${e.message}`, 'error');
+        }
+    }
+
+    // ── Debug ──────────────────────────────────────────────────────────────
+    function log(msg, level = 'info') {
+        const console = document.getElementById('logConsole');
+        if (!console) return;
+        const line = document.createElement('div');
+        line.className = `log-line ${level}`;
+        const ts   = new Date().toLocaleTimeString('pt-BR');
+        line.textContent = `[${ts}] ${msg}`;
+        console.appendChild(line);
+        console.scrollTop = console.scrollHeight;
+    }
+
+    function clearLogs() {
+        const c = document.getElementById('logConsole');
+        if (c) c.innerHTML =
+            '<div class="log-line info">[Console limpo]</div>';
+    }
+
+    async function testEndpoint(method, path) {
+        const area = document.getElementById('endpointResult');
+        area.style.display = 'block';
+        area.textContent   = 'Aguardando...';
+        log(`${method} ${path}`, 'info');
+        try {
+            const r   = await fetch(`${TTS_URL}${path}`, { method });
+            const txt = await r.text();
+            let pretty = txt;
+            try { pretty = JSON.stringify(JSON.parse(txt), null, 2); } catch (_) {}
+            area.textContent = `HTTP ${r.status}\n\n${pretty}`;
+            log(`${method} ${path} → ${r.status}`, r.ok ? 'ok' : 'error');
+        } catch (e) {
+            area.textContent = `ERRO: ${e.message}`;
+            log(`${method} ${path} ERRO: ${e.message}`, 'error');
+        }
+    }
+</script>
+</body>
+</html>
