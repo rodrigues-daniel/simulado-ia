@@ -35,7 +35,7 @@ spring:
         index-type: HNSW
         distance-type: COSINE_DISTANCE
         dimensions: 768
-        initialize-schema: true
+        initialize-schema: false   # ← não cria mais vector_store automaticamente sera removido futuramente
 
   servlet:
     multipart:
