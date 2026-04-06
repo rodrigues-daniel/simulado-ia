@@ -30,20 +30,57 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadTopics() {
     const contestId = document.getElementById('contestSelect').value;
     const sel = document.getElementById('topicSelect');
-    if (!contestId) {
-        sel.innerHTML = '<option value="">Selecione o tópico</option>';
-        hideTopicInfo();
-        return;
-    }
+
+    sel.innerHTML = '<option value="">Selecione o tópico</option>';
+    hideTopicInfo();
+    hideSuggestionBanner();
+
+    if (!contestId) return;
+
     try {
         const topics = await API.get(`/admin/topics/${contestId}`);
-        sel.innerHTML = '<option value="">Selecione o tópico</option>' +
-            topics.map(t =>
-                `<option value="${t.id}" data-discipline="${t.discipline || ''}"
-                         data-rate="${t.incidenceRate || 0}">
-                    ${t.name}
-                </option>`
-            ).join('');
+        if (!topics.length) {
+            sel.innerHTML = '<option value="">Nenhum tópico cadastrado</option>';
+            return;
+        }
+
+        // Agrupa por disciplina
+        const grouped = {};
+        topics.forEach(t => {
+            const disc = t.discipline || 'Sem Disciplina';
+            if (!grouped[disc]) grouped[disc] = [];
+            grouped[disc].push(t);
+        });
+
+        // Ordena disciplinas alfabeticamente
+        const sortedDiscs = Object.keys(grouped).sort();
+
+        let html = '<option value="">Selecione o tópico</option>';
+
+        sortedDiscs.forEach(disc => {
+            // Ordenar tópicos por incidência dentro da disciplina
+            const sorted = grouped[disc].sort(
+                (a, b) => (b.incidenceRate || 0) - (a.incidenceRate || 0)
+            );
+
+            html += `<optgroup label="📚 ${disc}">`;
+            sorted.forEach(t => {
+                const rate = t.incidenceRate
+                    ? ` — ${(t.incidenceRate * 100).toFixed(0)}%` : '';
+                const hidden = t.isHidden ? ' [oculto]' : '';
+                html +=
+                    `<option value="${t.id}"
+                             data-discipline="${escapeHtml(t.discipline || '')}"
+                             data-rate="${t.incidenceRate || 0}"
+                             ${t.isHidden ? 'style="color:var(--text-muted)"' : ''}>
+                        ${escapeHtml(t.name)}${rate}${hidden}
+                     </option>`;
+            });
+            html += '</optgroup>';
+        });
+
+        sel.innerHTML = html;
+
     } catch (e) {
         showToast('Erro ao carregar tópicos', 'error');
     }
