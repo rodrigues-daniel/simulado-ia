@@ -1,14 +1,14 @@
 // ── Módulo de Estudo Inverso ────────────────────────────────────────────
-let questions        = [];
-let currentIndex     = 0;
-let sessionId        = null;
-let sessionStats     = { correct: 0, wrong: 0, skipped: 0 };
+let questions = [];
+let currentIndex = 0;
+let sessionId = null;
+let sessionStats = { correct: 0, wrong: 0, skipped: 0 };
 let questionStartTime = null;
+let totalAvailable = 0;   // total no banco antes de limitar
 
 // ── Fila de pré-carregamento ────────────────────────────────────────────
-// Cada item: { question, prefetchedExplanation, prefetchDone, prefetchError }
-let prefetchQueue    = [];
-const PREFETCH_AHEAD = 2; // quantas questões à frente pré-carregar
+let prefetchQueue = [];
+const PREFETCH_AHEAD = 2;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadContestsIntoSelect('contestSelect');
@@ -17,21 +17,146 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (params.get('topicId')) {
         await loadTopics();
         document.getElementById('topicSelect').value = params.get('topicId');
+        if (params.get('limit')) {
+            const sel = document.getElementById('questionLimitSelect');
+            if (sel) sel.value = params.get('limit');
+        }
+        await onTopicSelected();
         await startStudy();
     }
 });
 
+// ── Carrega tópicos do concurso selecionado ─────────────────────────────
 async function loadTopics() {
     const contestId = document.getElementById('contestSelect').value;
-    if (!contestId) return;
+    const sel = document.getElementById('topicSelect');
+    if (!contestId) {
+        sel.innerHTML = '<option value="">Selecione o tópico</option>';
+        hideTopicInfo();
+        return;
+    }
     try {
         const topics = await API.get(`/admin/topics/${contestId}`);
-        const sel    = document.getElementById('topicSelect');
         sel.innerHTML = '<option value="">Selecione o tópico</option>' +
-            topics.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            topics.map(t =>
+                `<option value="${t.id}" data-discipline="${t.discipline || ''}"
+                         data-rate="${t.incidenceRate || 0}">
+                    ${t.name}
+                </option>`
+            ).join('');
     } catch (e) {
         showToast('Erro ao carregar tópicos', 'error');
     }
+}
+
+// ── Ao selecionar tópico — mostra info + verifica questões ──────────────
+async function onTopicSelected() {
+    const topicId = document.getElementById('topicSelect').value;
+    hideSuggestionBanner();
+    hideTopicInfo();
+
+    if (!topicId) return;
+
+    // Mostra informações do tópico
+    const sel = document.getElementById('topicSelect');
+    const option = sel.options[sel.selectedIndex];
+    const rate = parseFloat(option.dataset.rate || 0);
+    const disc = option.dataset.discipline || '';
+    showTopicInfo(option.text, disc, rate);
+
+    // Verifica quantidade de questões disponíveis
+    try {
+        const check = await API.get(`/ia-admin/topics/${topicId}/check`);
+        updateLimitSelector(check.total);
+        if (check.suggestGenerate) {
+            showSuggestionBanner(check);
+        }
+    } catch (_) { }
+}
+
+// ── Atualiza o seletor de quantidade com base no total disponível ───────
+function updateLimitSelector(total) {
+    totalAvailable = total;
+    const sel = document.getElementById('questionLimitSelect');
+    if (!sel) return;
+
+    // Atualiza opção "Todas" com o total real
+    sel.options[0].text = total > 0
+        ? `Todas (${total} disponíveis)`
+        : 'Todas disponíveis';
+
+    // Desabilita opções maiores que o total (sem remover)
+    Array.from(sel.options).forEach(opt => {
+        const val = parseInt(opt.value);
+        if (val > 0 && total > 0 && val > total) {
+            opt.disabled = true;
+            opt.text = `${val} questões (só há ${total})`;
+        } else {
+            opt.disabled = false;
+            opt.text = val === 0
+                ? (total > 0 ? `Todas (${total} disponíveis)` : 'Todas disponíveis')
+                : `${val} questões`;
+        }
+    });
+
+    // Se a opção atual está desabilitada, volta para "Todas"
+    if (sel.options[sel.selectedIndex]?.disabled) {
+        sel.value = '0';
+    }
+}
+
+// ── Info do tópico selecionado ──────────────────────────────────────────
+function showTopicInfo(name, discipline, rate) {
+    const bar = document.getElementById('topicInfo');
+    const content = document.getElementById('topicInfoContent');
+    if (!bar || !content) return;
+
+    const ratePct = (rate * 100).toFixed(0);
+    const rateColor = rate >= 0.80 ? 'var(--success)'
+        : rate >= 0.70 ? 'var(--warning)' : 'var(--danger)';
+
+    content.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div>
+                <span style="font-size:12px;font-weight:700;
+                             color:var(--text-muted);text-transform:uppercase">
+                    Disciplina
+                </span>
+                <div style="font-size:13px;font-weight:600">${discipline || '—'}</div>
+            </div>
+            <div>
+                <span style="font-size:12px;font-weight:700;
+                             color:var(--text-muted);text-transform:uppercase">
+                    Incidência Histórica
+                </span>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <div style="width:80px;height:6px;background:var(--border);
+                                border-radius:4px;overflow:hidden">
+                        <div style="width:${ratePct}%;height:100%;
+                                    background:${rateColor};border-radius:4px"></div>
+                    </div>
+                    <span style="font-size:14px;font-weight:800;color:${rateColor}">
+                        ${ratePct}%
+                    </span>
+                </div>
+            </div>
+            <div id="topicQuestionCount" style="margin-left:auto">
+                <span style="font-size:12px;font-weight:700;
+                             color:var(--text-muted);text-transform:uppercase">
+                    Questões no banco
+                </span>
+                <div style="font-size:18px;font-weight:800;color:var(--primary)">
+                    ${totalAvailable > 0 ? totalAvailable : '...'}
+                </div>
+            </div>
+        </div>`;
+
+    bar.style.display = 'block';
+}
+
+function hideTopicInfo() {
+    const bar = document.getElementById('topicInfo');
+    if (bar) bar.style.display = 'none';
 }
 
 // ── Início da sessão ────────────────────────────────────────────────────
@@ -39,107 +164,128 @@ async function startStudy() {
     const topicId = document.getElementById('topicSelect').value;
     if (!topicId) { showToast('Selecione um tópico', 'error'); return; }
 
-    // Mostra indicador de carregamento no botão
+    const limitSel = document.getElementById('questionLimitSelect');
+    const orderSel = document.getElementById('questionOrderSelect');
+    const limit = parseInt(limitSel?.value || '0');
+    const order = orderSel?.value || 'random';
+
     const btn = document.querySelector('button[onclick="startStudy()"]');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Carregando...'; }
 
     try {
-        // Uma única chamada: cria sessão + retorna (ou gera) questões
-        const response = await API.post('/study/sessions', {
+        const session = await API.post('/study/sessions', {
             topicId: parseInt(topicId)
         });
+        sessionId = session.sessionId;
+        let allQuestions = session.questions || [];
 
-        sessionId = response.sessionId;
-        questions = response.questions || [];
-
-        // Exibe aviso se as questões vieram da IA
-        if (response.message) {
-            showStudySourceBanner(response.source, response.message);
-        }
-
-        if (!questions.length) {
+        if (!allQuestions.length) {
             showToast(
-                response.message || 'Nenhuma questão disponível para este tópico.',
+                session.message || 'Nenhuma questão disponível.',
                 'error'
             );
             return;
         }
 
-        currentIndex  = 0;
-        sessionStats  = { correct: 0, wrong: 0, skipped: 0 };
+        // Aplica ordenação
+        allQuestions = applyOrder(allQuestions, order);
+
+        // Aplica limite
+        if (limit > 0 && allQuestions.length > limit) {
+            allQuestions = allQuestions.slice(0, limit);
+        }
+
+        questions = allQuestions;
+        currentIndex = 0;
+        sessionStats = { correct: 0, wrong: 0, skipped: 0 };
         prefetchQueue = questions.map(q => ({
-            question:              q,
+            question: q,
             prefetchedExplanation: null,
-            prefetchDone:          false,
-            prefetchError:         false
+            prefetchSource: null,
+            prefetchDone: false,
+            prefetchError: false
         }));
 
-        show('questionArea');
-        hide('topicSelector');
-        hide('feedbackArea');
-        hide('sessionResult');
-        hide('processingBox');
+        // Exibe banner de origem se veio da IA
+        if (session.message) {
+            showStudySourceBanner(session.source, session.message);
+        }
 
-        renderQuestion();
-        schedulePrefetch();
+        // Mostra resumo da sessão antes de começar
+        showSessionStart(questions.length, limit, order);
 
     } catch (e) {
-        console.error('[startStudy] erro:', e);
-        showToast('Erro ao iniciar estudo. Verifique o servidor.', 'error');
+        console.error('[startStudy]', e);
+        showToast('Erro ao iniciar estudo.', 'error');
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = '🚀 Iniciar Estudo'; }
     }
 }
 
+// ── Ordenação das questões ──────────────────────────────────────────────
+function applyOrder(qs, order) {
+    const diffOrder = { FACIL: 1, MEDIO: 2, DIFICIL: 3 };
 
-// Banner informativo sobre a origem das questões
-function showStudySourceBanner(source, message) {
-    // Remove banner anterior se existir
-    const existing = document.getElementById('sourceBanner');
-    if (existing) existing.remove();
+    switch (order) {
+        case 'random':
+            // Fisher-Yates shuffle
+            for (let i = qs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [qs[i], qs[j]] = [qs[j], qs[i]];
+            }
+            return qs;
 
-    const isAI    = source === 'AI_GENERATED';
-    const isError = source === 'AI_ERROR' || source === 'AI_EMPTY';
+        case 'difficulty_asc':
+            return [...qs].sort((a, b) =>
+                (diffOrder[a.difficulty] || 2) - (diffOrder[b.difficulty] || 2)
+            );
 
-    const banner = document.createElement('div');
-    banner.id    = 'sourceBanner';
-    banner.style.cssText = `
-        padding: 12px 18px;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        font-size: 13px;
-        font-weight: 600;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        background: ${isError ? '#fee2e2' : '#fef9c3'};
-        color:      ${isError ? '#991b1b' : '#854d0e'};
-        border:     1px solid ${isError ? '#fca5a5' : '#fde047'};
-    `;
+        case 'difficulty_desc':
+            return [...qs].sort((a, b) =>
+                (diffOrder[b.difficulty] || 2) - (diffOrder[a.difficulty] || 2)
+            );
 
-    banner.innerHTML = `
-        <span style="font-size:18px;flex-shrink:0">${isError ? '⚠️' : '🤖'}</span>
-        <span>${message}</span>
-    `;
+        case 'newest':
+            return [...qs].sort((a, b) =>
+                new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+            );
 
-    // Insere antes da questionArea
-    const questionArea = document.getElementById('questionArea');
-    if (questionArea) {
-        questionArea.parentNode.insertBefore(banner, questionArea);
+        default:
+            return qs;
     }
 }
 
+// ── Resumo antes de iniciar ─────────────────────────────────────────────
+function showSessionStart(count, limit, order) {
+    const orderLabels = {
+        random: '🎲 Aleatória',
+        difficulty_asc: '📗 Fáceis primeiro',
+        difficulty_desc: '📕 Difíceis primeiro',
+        newest: '🆕 Mais recentes',
+    };
 
-async function generateAIQuestions() {
-    const topicId = document.getElementById('topicSelect').value;
-    if (!topicId) { showToast('Selecione um tópico primeiro', 'error'); return; }
-    showToast('Gerando questões com IA... aguarde', 'success');
-    try {
-        await API.post('/questions/generate', { topicId: parseInt(topicId), count: 10 });
-        showToast('10 questões geradas com sucesso!', 'success');
-    } catch (e) {
-        showToast('Erro ao gerar questões', 'error');
+    const limited = limit > 0 && totalAvailable > limit;
+
+    // Atualiza cabeçalho da sessão com informações
+    const header = document.getElementById('sessionInfoHeader');
+    if (header) {
+        header.innerHTML = `
+            <div class="session-start-info">
+                <span>📋 <strong>${count}</strong> questões</span>
+                ${limited ? `<span>📌 de ${totalAvailable} disponíveis</span>` : ''}
+                <span>${orderLabels[order] || '🎲 Aleatória'}</span>
+            </div>`;
+        header.style.display = 'block';
     }
+
+    show('questionArea');
+    hide('topicSelector');
+    hide('feedbackArea');
+    hide('sessionResult');
+    hide('processingBox');
+
+    renderQuestion();
+    schedulePrefetch();
 }
 
 // ── Renderiza questão atual ─────────────────────────────────────────────
@@ -151,18 +297,16 @@ function renderQuestion() {
 
     const q = questions[currentIndex];
 
-    document.getElementById('currentQ').textContent         = currentIndex + 1;
-    document.getElementById('totalQ').textContent           = questions.length;
+    document.getElementById('currentQ').textContent = currentIndex + 1;
+    document.getElementById('totalQ').textContent = questions.length;
     document.getElementById('questionStatement').textContent = q.statement;
 
     hide('feedbackArea');
     hide('processingBox');
-
-    // Habilita botões
     setAnswerButtons(true);
 
     // Palavras-armadilha
-    const traps     = q.trapKeywords || [];
+    const traps = q.trapKeywords || [];
     const trapAlert = document.getElementById('trapAlert');
     if (traps.length) {
         document.getElementById('trapWords').textContent = traps.join(', ');
@@ -172,35 +316,88 @@ function renderQuestion() {
     }
 
     // Dificuldade
-    const diffMap   = { FACIL: 'badge-success', MEDIO: 'badge-warning', DIFICIL: 'badge-danger' };
+    const diffMap = {
+        FACIL: 'badge-success',
+        MEDIO: 'badge-warning',
+        DIFICIL: 'badge-danger'
+    };
     const diffBadge = document.getElementById('difficultyBadge');
-    diffBadge.className   = `badge ${diffMap[q.difficulty] || 'badge-info'}`;
-    diffBadge.textContent = q.difficulty || '';
+    if (diffBadge) {
+        diffBadge.className = `badge ${diffMap[q.difficulty] || 'badge-info'}`;
+        diffBadge.textContent = q.difficulty || '';
+    }
 
-    // Indicador de pré-carregamento (info discreta)
+    // Contador visual de progresso
+    updateProgressBar();
     updatePrefetchIndicator();
 
     questionStartTime = Date.now();
 }
 
-// ── Pré-carregamento em background ─────────────────────────────────────
-//
-// Estratégia:
-//   1. Para cada questão à frente (até PREFETCH_AHEAD), busca do banco
-//      se já existe explanation — se sim, armazena em prefetchQueue
-//   2. Se não houver explanation no banco, agenda geração via IA
-//      em background sem bloquear a UI
-//   3. Quando o usuário responder ERRADO, a explicação já está pronta
-//      e é exibida instantaneamente
+// ── Barra de progresso ─────────────────────────────────────────────────
+function updateProgressBar() {
+    const bar = document.getElementById('studyProgressBar');
+    if (!bar) return;
+    const pct = questions.length > 0
+        ? Math.round((currentIndex / questions.length) * 100) : 0;
+    bar.style.width = `${pct}%`;
 
+    const label = document.getElementById('studyProgressLabel');
+    if (label) {
+        const remaining = questions.length - currentIndex;
+        label.textContent = remaining > 0
+            ? `${remaining} questão(ões) restantes`
+            : 'Última questão!';
+    }
+}
+
+// ── Resto das funções (mantidas do código anterior) ────────────────────
+
+async function generateAIQuestions() {
+    const topicId = document.getElementById('topicSelect').value;
+    if (!topicId) { showToast('Selecione um tópico primeiro', 'error'); return; }
+    showToast('Gerando questões com IA... aguarde', 'success');
+    try {
+        await API.post('/questions/generate', {
+            topicId: parseInt(topicId), count: 10
+        });
+        showToast('10 questões geradas!', 'success');
+        await onTopicSelected();
+    } catch (e) {
+        showToast('Erro ao gerar questões', 'error');
+    }
+}
+
+async function generateAndStart() {
+    const topicId = document.getElementById('topicSelect').value;
+    if (!topicId) return;
+    hideSuggestionBanner();
+    const btn = document.querySelector('button[onclick="startStudy()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '🤖 Gerando...'; }
+    try {
+        await API.post('/questions/generate', {
+            topicId: parseInt(topicId), count: 10
+        });
+        showToast('Questões geradas! Iniciando...', 'success');
+        await onTopicSelected();
+        await startStudy();
+    } catch (e) {
+        showToast('Erro ao gerar questões.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Iniciar Estudo'; }
+    }
+}
+
+async function startStudyWithExisting() {
+    hideSuggestionBanner();
+    await startStudy();
+}
+
+// ── Prefetch ────────────────────────────────────────────────────────────
 async function schedulePrefetch() {
     const end = Math.min(currentIndex + PREFETCH_AHEAD + 1, questions.length);
-
     for (let i = currentIndex; i < end; i++) {
         const item = prefetchQueue[i];
         if (!item || item.prefetchDone || item.prefetchError) continue;
-
-        // Não bloqueia — roda em background
         prefetchItem(i);
     }
 }
@@ -208,40 +405,31 @@ async function schedulePrefetch() {
 async function prefetchItem(index) {
     const item = prefetchQueue[index];
     if (!item || item.prefetchDone) return;
-
     const q = item.question;
-
     try {
-        // ── Caso 1: banco relacional tem explicação suficiente ──────────
         if (q.explanation && q.explanation.trim().length > 10) {
             item.prefetchedExplanation = q.explanation;
-            item.prefetchSource        = 'database'; // ← rastreia origem
-            item.prefetchDone          = true;
+            item.prefetchSource = 'database';
+            item.prefetchDone = true;
             updatePrefetchIndicator();
             return;
         }
-
-        // ── Caso 2: banco vazio — tenta Ollama + RAG ───────────────────
         const ollamaOk = await checkOllamaAvailable();
         if (!ollamaOk) {
-            item.prefetchDone  = true;
+            item.prefetchDone = true;
             item.prefetchError = true;
             item.prefetchSource = 'unavailable';
             return;
         }
-
         const result = await API.post(
-            `/questions/${q.id}/prefetch-explanation`, {}
-        );
-
+            `/questions/${q.id}/prefetch-explanation`, {});
         item.prefetchedExplanation = result.explanation || null;
-        item.prefetchSource        = result.source || 'ai'; // 'database','ai','fallback'
-        item.prefetchDone          = true;
+        item.prefetchSource = result.source || 'ai';
+        item.prefetchDone = true;
         updatePrefetchIndicator();
-
     } catch (e) {
-        item.prefetchDone   = true;
-        item.prefetchError  = true;
+        item.prefetchDone = true;
+        item.prefetchError = true;
         item.prefetchSource = 'error';
     }
 }
@@ -250,118 +438,98 @@ async function checkOllamaAvailable() {
     try {
         const res = await fetch('/api/ai/health', { method: 'GET' });
         return res.ok;
-    } catch (_) {
-        return false;
-    }
+    } catch (_) { return false; }
 }
 
 function updatePrefetchIndicator() {
     const indicator = document.getElementById('prefetchIndicator');
     if (!indicator) return;
-
     const next = prefetchQueue[currentIndex + 1];
-    if (!next) {
-        indicator.style.display = 'none';
-        return;
-    }
-
+    if (!next) { indicator.style.display = 'none'; return; }
     if (next.prefetchDone && !next.prefetchError) {
-        indicator.style.display  = 'flex';
-        indicator.className      = 'prefetch-indicator ready';
-        indicator.innerHTML      = '⚡ Próxima questão pré-carregada';
+        indicator.style.display = 'flex';
+        indicator.className = 'prefetch-indicator ready';
+        indicator.innerHTML = '⚡ Próxima questão pré-carregada';
     } else if (!next.prefetchDone) {
-        indicator.style.display  = 'flex';
-        indicator.className      = 'prefetch-indicator loading';
-        indicator.innerHTML      = '<span class="mini-spinner"></span> Pré-carregando próxima...';
+        indicator.style.display = 'flex';
+        indicator.className = 'prefetch-indicator loading';
+        indicator.innerHTML =
+            '<span class="mini-spinner"></span> Pré-carregando próxima...';
     } else {
         indicator.style.display = 'none';
     }
 }
 
-// ── Resposta do usuário ─────────────────────────────────────────────────
+// ── Resposta ─────────────────────────────────────────────────────────────
 async function answer(userAnswer) {
-    const q         = questions[currentIndex];
+    const q = questions[currentIndex];
     const timeSpent = Date.now() - (questionStartTime || Date.now());
 
     if (!sessionId) {
-        showToast('Sessão inválida. Reinicie o estudo.', 'error');
-        return;
+        showToast('Sessão inválida. Reinicie o estudo.', 'error'); return;
     }
 
     setAnswerButtons(false);
     showProcessingBox(userAnswer);
 
     try {
-        // Verifica se já temos a explicação pré-carregada
-        const prefetchItem = prefetchQueue[currentIndex];
-        const hasPrefetch  = prefetchItem?.prefetchDone
-                          && !prefetchItem?.prefetchError
-                          && prefetchItem?.prefetchedExplanation;
-
-        // Envia resposta ao servidor
         const result = await API.post(`/questions/${q.id}/answer`, {
-            sessionId:   sessionId,
-            answer:      userAnswer,
+            sessionId: sessionId,
+            answer: userAnswer,
             timeSpentMs: timeSpent
         });
 
-        // ── CORREÇÃO DO BUG DE INVERSÃO ────────────────────────────────
-        // result.isCorrect vem do servidor — nunca inverte
-        // Apenas usa o valor booleano diretamente sem nenhuma conversão
         const isCorrect = result.isCorrect === true;
+        if (isCorrect) sessionStats.correct++;
+        else sessionStats.wrong++;
 
-        if (isCorrect) {
-            sessionStats.correct++;
-        } else {
-            sessionStats.wrong++;
-
-            // Se temos explicação pré-carregada e o servidor não trouxe uma via IA
-            // injeta a pré-carregada para exibição imediata
-            if (hasPrefetch && !result.professorExplanation) {
-                result.professorExplanation = prefetchItem.prefetchedExplanation;
+        if (!isCorrect) {
+            const prefetch = prefetchQueue[currentIndex];
+            if (prefetch?.prefetchDone && !prefetch?.prefetchError
+                && prefetch?.prefetchedExplanation
+                && !result.professorExplanation) {
+                result.professorExplanation = prefetch.prefetchedExplanation;
             }
         }
 
-        // Avança o pré-carregamento para as próximas questões
         currentIndex++;
         schedulePrefetch();
-        currentIndex--; // volta para renderFeedback usar o índice correto
+        currentIndex--;
 
         renderFeedback(result, userAnswer, isCorrect);
 
     } catch (e) {
-        console.error('[answer] erro:', e);
+        console.error('[answer]', e);
         hideProcessingBox();
         setAnswerButtons(true);
         showToast('Erro ao registrar resposta. Tente novamente.', 'error');
     }
 }
 
-// ── Processing Box ──────────────────────────────────────────────────────
+// ── Processing Box ─────────────────────────────────────────────────────
 function showProcessingBox(userAnswer) {
-    const choiceLabel = userAnswer === true  ? '✅ Você marcou: CERTO'
-                      : userAnswer === false ? '❌ Você marcou: ERRADO'
-                      : '— Em branco';
+    const choiceLabel = userAnswer === true ? '✅ Você marcou: CERTO'
+        : userAnswer === false ? '❌ Você marcou: ERRADO'
+            : '— Em branco';
 
     document.getElementById('processingAnswer').textContent = choiceLabel;
     document.getElementById('processingStatus').textContent = 'Registrando resposta...';
-    document.getElementById('processingBar').style.width    = '25%';
+    document.getElementById('processingBar').style.width = '25%';
     document.getElementById('processingSource').textContent = '';
-
     show('processingBox');
 
-    const item   = prefetchQueue[currentIndex];
+    const item = prefetchQueue[currentIndex];
     const source = item?.prefetchSource;
-    const done   = item?.prefetchDone && !item?.prefetchError;
+    const done = item?.prefetchDone && !item?.prefetchError;
 
     setTimeout(() => {
-        document.getElementById('processingStatus').textContent = 'Verificando gabarito...';
-        document.getElementById('processingBar').style.width    = '50%';
+        document.getElementById('processingStatus').textContent =
+            'Verificando gabarito...';
+        document.getElementById('processingBar').style.width = '50%';
     }, 250);
 
     setTimeout(() => {
         if (done) {
-            // Mensagem honesta sobre a origem real
             const { label, detail } = getSourceLabel(source);
             document.getElementById('processingStatus').textContent = label;
             document.getElementById('processingSource').textContent = detail;
@@ -369,42 +537,36 @@ function showProcessingBox(userAnswer) {
             document.getElementById('processingStatus').textContent =
                 '🤖 Consultando professor virtual via IA...';
             document.getElementById('processingSource').textContent =
-                'PGVector (banco vetorial) + llama3.2:3b estão gerando a explicação.';
+                'PGVector + llama3.2:3b gerando explicação.';
         }
         document.getElementById('processingBar').style.width = '75%';
     }, 600);
 }
 
-function getSourceLabel(source) {
-    switch (source) {
-        case 'database':
-            return {
-                label:  '📖 Carregando explicação do banco de dados...',
-                detail: 'Explicação recuperada do PostgreSQL — sem uso de IA.'
-            };
-        case 'ai':
-            return {
-                label:  '🤖 Carregando explicação gerada por IA...',
-                detail: 'Gerada pelo llama3.2:3b com contexto do banco vetorial (PGVector).'
-            };
-        case 'fallback':
-            return {
-                label:  '📖 Carregando explicação de fallback...',
-                detail: 'IA indisponível. Usando explicação estática do banco de dados.'
-            };
-        default:
-            return {
-                label:  '⚡ Carregando explicação...',
-                detail: ''
-            };
-    }
-}
 function hideProcessingBox() {
     hide('processingBox');
     document.getElementById('processingBar').style.width = '0%';
 }
 
-// ── Renderiza feedback ──────────────────────────────────────────────────
+function getSourceLabel(source) {
+    const map = {
+        database: {
+            label: '📖 Carregando explicação do banco...',
+            detail: 'Recuperado do PostgreSQL.'
+        },
+        ai: {
+            label: '🤖 Carregando explicação da IA...',
+            detail: 'Gerada com llama3.2:3b + PGVector.'
+        },
+        fallback: {
+            label: '📖 Carregando explicação de fallback...',
+            detail: 'IA indisponível. Usando banco.'
+        },
+    };
+    return map[source] || { label: '⚡ Carregando...', detail: '' };
+}
+
+// ── Feedback ───────────────────────────────────────────────────────────
 function renderFeedback(result, userAnswer, isCorrect) {
     document.getElementById('processingBar').style.width = '100%';
 
@@ -413,15 +575,11 @@ function renderFeedback(result, userAnswer, isCorrect) {
         hide('questionArea');
         show('feedbackArea');
 
-        const q = questions[currentIndex];
-
-        // ── Origem da questão ───────────────────────────────────────────
         const originTag = result.fromIA
             ? '<span class="question-origin-tag from-ia">🤖 Gerada por IA</span>'
             : '<span class="question-origin-tag from-manual">📝 Base Manual</span>';
 
         const resultEl = document.getElementById('answerResult');
-
         if (isCorrect) {
             resultEl.innerHTML = `
                 <div class="answer-correct">
@@ -431,7 +589,7 @@ function renderFeedback(result, userAnswer, isCorrect) {
                     <div class="answer-big-icon">✅</div>
                     <div class="answer-title correct">CORRETO!</div>
                     <div class="answer-subtitle">
-                        ${result.explanation || 'Muito bem! Continue assim.'}
+                        ${result.explanation || 'Muito bem!'}
                     </div>
                 </div>`;
         } else {
@@ -449,7 +607,7 @@ function renderFeedback(result, userAnswer, isCorrect) {
                 </div>`;
         }
 
-        // ── Parágrafo da lei ────────────────────────────────────────────
+        // Parágrafo da lei
         const lawBox = document.getElementById('lawParagraphBox');
         if (!isCorrect && result.lawParagraph) {
             document.getElementById('lawReference').textContent =
@@ -461,7 +619,7 @@ function renderFeedback(result, userAnswer, isCorrect) {
             lawBox.style.display = 'none';
         }
 
-        // ── Campo do professor ──────────────────────────────────────────
+        // Campo do professor
         const profBox = document.getElementById('professorBox');
         if (!isCorrect && result.professorExplanation) {
             document.getElementById('professorExplanation').textContent =
@@ -469,46 +627,188 @@ function renderFeedback(result, userAnswer, isCorrect) {
             document.getElementById('professorTip').textContent =
                 result.professorTip ? `💡 ${result.professorTip}` : '';
 
-            // Tag de origem da explicação
-            const sourceTag  = document.getElementById('professorSource');
-            const ragScore   = result.ragScore
-                ? ` (score: ${(result.ragScore * 100).toFixed(0)}%)`
-                : '';
-
-            const tagConfig = {
-                CACHE_DB:  { text: '📖 Cache — banco',          cls: 'from-db'  },
-                CACHE_RAG: { text: `⚡ Cache — IA + RAG${ragScore}`, cls: 'from-ai' },
-                AI_RAG:    { text: `🤖 IA + Banco Vetorial${ragScore}`, cls: 'from-ai' },
-                AI_ONLY:   { text: '🤖 IA (sem RAG)',            cls: 'from-ai'  },
-                FALLBACK:  { text: '📖 Fallback estático',       cls: 'from-fallback' }
-            };
-            const cfg = tagConfig[result.explanationSource] ||
-                        { text: '🤖 IA', cls: 'from-ai' };
+            const sourceTag = document.getElementById('professorSource');
             if (sourceTag) {
+                const prefetch = prefetchQueue[currentIndex];
+                const srcKey = prefetch?.prefetchSource;
+                const tagConfig = {
+                    database: { text: '📖 Banco de dados', cls: 'from-db' },
+                    ai: { text: '🤖 IA + Banco Vetorial', cls: 'from-ai' },
+                    fallback: { text: '📖 Fallback estático', cls: 'from-db' },
+                };
+                const cfg = tagConfig[srcKey] || { text: '🤖 IA', cls: 'from-ai' };
                 sourceTag.textContent = cfg.text;
-                sourceTag.className   = `prof-source-tag ${cfg.cls}`;
+                sourceTag.className = `prof-source-tag ${cfg.cls}`;
             }
-
             profBox.style.display = 'block';
         } else {
             profBox.style.display = 'none';
         }
 
-        // ── Barra de ações (salvar + anotar) ────────────────────────────
-        renderActionBar(q.id, result.isSaved);
+        renderActionBar(questions[currentIndex]?.id, result.isSaved);
 
     }, 350);
 }
 
-// ── Barra de ações ──────────────────────────────────────────────────────
+// ── Próxima questão ─────────────────────────────────────────────────────
+function nextQuestion() {
+    currentIndex++;
+    hide('feedbackArea');
+    show('questionArea');
+    renderQuestion();
+    schedulePrefetch();
+}
+
+// ── Resultado da sessão ─────────────────────────────────────────────────
+function showSessionResult() {
+    hide('questionArea');
+    hide('feedbackArea');
+    show('sessionResult');
+
+    const total = sessionStats.correct + sessionStats.wrong + sessionStats.skipped;
+    const acc = total > 0
+        ? ((sessionStats.correct / total) * 100).toFixed(1) : 0;
+    const netScore = Math.max(0, sessionStats.correct - sessionStats.wrong);
+
+    document.getElementById('sessionStats').innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+                    gap:14px;text-align:center;margin-bottom:16px">
+            <div class="score-card">
+                <span class="score-label">Corretas</span>
+                <span class="score-value green">${sessionStats.correct}</span>
+            </div>
+            <div class="score-card">
+                <span class="score-label">Erradas</span>
+                <span class="score-value red">${sessionStats.wrong}</span>
+            </div>
+            <div class="score-card">
+                <span class="score-label">Aproveitamento</span>
+                <span class="score-value">${acc}%</span>
+            </div>
+            <div class="score-card highlight">
+                <span class="score-label">Pontuação Líquida</span>
+                <span class="score-value">${netScore}</span>
+            </div>
+        </div>
+
+        <!-- Barra de desempenho -->
+        <div style="margin-bottom:16px">
+            <div style="height:12px;background:var(--border);
+                        border-radius:6px;overflow:hidden;display:flex">
+                <div style="width:${acc}%;background:${parseFloat(acc) >= 70 ? 'var(--success)' :
+            parseFloat(acc) >= 50 ? 'var(--warning)' : 'var(--danger)'
+        };transition:width .5s;border-radius:6px"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;
+                        font-size:11px;color:var(--text-muted);margin-top:4px">
+                <span>0%</span>
+                <span style="font-weight:700;color:var(--primary)">${acc}%</span>
+                <span>100%</span>
+            </div>
+        </div>
+
+        <!-- Avaliação qualitativa -->
+        <div class="session-eval ${getEvalClass(parseFloat(acc))}">
+            ${getEvalMessage(parseFloat(acc), sessionStats.correct, total)}
+        </div>`;
+}
+
+function getEvalClass(acc) {
+    if (acc >= 80) return 'eval-excellent';
+    if (acc >= 60) return 'eval-good';
+    if (acc >= 40) return 'eval-regular';
+    return 'eval-poor';
+}
+
+function getEvalMessage(acc, correct, total) {
+    if (acc >= 80) return `🏆 Excelente! ${correct}/${total} corretas. Domínio avançado do tópico.`;
+    if (acc >= 60) return `👍 Bom desempenho. Revise as questões erradas para consolidar o aprendizado.`;
+    if (acc >= 40) return `📚 Desempenho regular. Recomendamos revisar o material do tópico.`;
+    return `🎯 Precisa de atenção. Estude o fundamento legal e tente novamente.`;
+}
+
+// ── Reiniciar ──────────────────────────────────────────────────────────
+function restartStudy() {
+    currentIndex = 0;
+    sessionStats = { correct: 0, wrong: 0, skipped: 0 };
+    prefetchQueue = [];
+    hide('sessionResult');
+    show('topicSelector');
+}
+
+// ── Banners ────────────────────────────────────────────────────────────
+function showSuggestionBanner(check) {
+    const banner = document.getElementById('suggestionBanner');
+    if (!banner) return;
+    const isZero = check.total === 0;
+    banner.style.cssText = `
+        display:block;margin-top:14px;padding:14px 16px;border-radius:10px;
+        background:${isZero ? '#ede9fe' : '#fef9c3'};
+        border:1px solid ${isZero ? '#c4b5fd' : '#fde047'};
+        font-size:13px;color:${isZero ? '#5b21b6' : '#854d0e'};
+    `;
+    banner.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:10px">
+            <span style="font-size:20px;flex-shrink:0">
+                ${isZero ? '🤖' : '💡'}
+            </span>
+            <div style="flex:1">
+                <div style="font-weight:700;margin-bottom:4px">
+                    ${isZero ? 'Sem questões cadastradas' : 'Poucas questões'}
+                </div>
+                <div style="margin-bottom:10px">${check.recommendation}</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-sm"
+                            style="background:${isZero ? '#7c3aed' : '#d97706'};color:#fff"
+                            onclick="generateAndStart()">
+                        🤖 Gerar com IA e iniciar
+                    </button>
+                    ${!isZero ? `
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="startStudyWithExisting()">
+                        📚 Usar ${check.approved} questões existentes
+                    </button>` : ''}
+                </div>
+            </div>
+        </div>`;
+}
+
+function hideSuggestionBanner() {
+    const b = document.getElementById('suggestionBanner');
+    if (b) b.style.display = 'none';
+}
+
+function showStudySourceBanner(source, message) {
+    const existing = document.getElementById('sourceBanner');
+    if (existing) existing.remove();
+    const isError = source === 'AI_ERROR' || source === 'AI_EMPTY';
+    const banner = document.createElement('div');
+    banner.id = 'sourceBanner';
+    banner.style.cssText = `
+        padding:12px 18px;border-radius:8px;margin-bottom:16px;
+        font-size:13px;font-weight:600;display:flex;align-items:flex-start;gap:10px;
+        background:${isError ? '#fee2e2' : '#fef9c3'};
+        color:${isError ? '#991b1b' : '#854d0e'};
+        border:1px solid ${isError ? '#fca5a5' : '#fde047'};
+    `;
+    banner.innerHTML =
+        `<span style="font-size:18px;flex-shrink:0">
+            ${isError ? '⚠️' : '🤖'}
+         </span>
+         <span>${message}</span>`;
+    const qa = document.getElementById('questionArea');
+    if (qa) qa.parentNode.insertBefore(banner, qa);
+}
+
+// ── Action Bar (salvar + anotar) ───────────────────────────────────────
 function renderActionBar(questionId, isSaved) {
+    if (!questionId) return;
     let bar = document.getElementById('actionBar');
     if (!bar) {
         bar = document.createElement('div');
         bar.id = 'actionBar';
-        document.getElementById('feedbackArea').appendChild(bar);
+        document.getElementById('feedbackArea')?.appendChild(bar);
     }
-
     bar.className = 'action-bar';
     bar.innerHTML = `
         <button class="btn-action ${isSaved ? 'saved' : ''}"
@@ -517,53 +817,44 @@ function renderActionBar(questionId, isSaved) {
         </button>
         <button class="btn-action" onclick="toggleNotes(${questionId})">
             📝 Anotações
-        </button>
-    `;
-
-    // Carrega notas existentes
+        </button>`;
     loadNotes(questionId);
 }
 
-// ── Salvar / desfavoritar ───────────────────────────────────────────────
+// ── Salvar questão ─────────────────────────────────────────────────────
 async function toggleSave(questionId) {
-    const btn    = document.getElementById('btnSave');
+    const btn = document.getElementById('btnSave');
     const isSaved = btn.classList.contains('saved');
-
     try {
         if (isSaved) {
             await fetch(`/api/questions/${questionId}/save`, { method: 'DELETE' });
             btn.classList.remove('saved');
             btn.textContent = '📌 Salvar questão';
-            showToast('Questão removida dos favoritos', 'success');
+            showToast('Removido dos favoritos', 'success');
         } else {
             await API.post(`/questions/${questionId}/save`, {});
             btn.classList.add('saved');
             btn.textContent = '🔖 Salvo';
             showToast('Questão salva!', 'success');
         }
-    } catch (e) {
-        showToast('Erro ao salvar questão', 'error');
-    }
+    } catch (e) { showToast('Erro ao salvar', 'error'); }
 }
 
-// ── Notas ───────────────────────────────────────────────────────────────
+// ── Notas ──────────────────────────────────────────────────────────────
 let notesVisible = false;
 let currentNotesQuestionId = null;
 
 async function toggleNotes(questionId) {
     currentNotesQuestionId = questionId;
-    let notesBox = document.getElementById('notesBox');
-
-    if (notesBox && notesVisible && currentNotesQuestionId === questionId) {
-        notesBox.style.display = 'none';
+    const nb = document.getElementById('notesBox');
+    if (nb && notesVisible && currentNotesQuestionId === questionId) {
+        nb.style.display = 'none';
         notesVisible = false;
         return;
     }
-
     notesVisible = true;
     await loadNotes(questionId);
 }
-
 
 async function loadNotes(questionId) {
     let notesBox = document.getElementById('notesBox');
@@ -571,16 +862,13 @@ async function loadNotes(questionId) {
         notesBox = document.createElement('div');
         notesBox.id = 'notesBox';
         notesBox.className = 'notes-box';
-        document.getElementById('feedbackArea').appendChild(notesBox);
+        document.getElementById('feedbackArea')?.appendChild(notesBox);
     }
-
     try {
         const notes = await API.get(`/questions/${questionId}/notes`);
         renderNotesBox(questionId, notes);
         notesBox.style.display = 'block';
-    } catch (e) {
-        console.error('Erro ao carregar notas:', e);
-    }
+    } catch (e) { console.error('Notas:', e); }
 }
 
 function renderNotesBox(questionId, notes) {
@@ -588,33 +876,33 @@ function renderNotesBox(questionId, notes) {
     box.innerHTML = `
         <div class="notes-header">
             <span>📝 Minhas Anotações</span>
-            <button class="btn-icon" onclick="document.getElementById('notesBox').style.display='none'">
+            <button class="btn-icon"
+                    onclick="document.getElementById('notesBox').style.display='none'">
                 ✕
             </button>
         </div>
-
         <div id="notesList" class="notes-list">
-            ${notes.length ? notes.map(n => renderNoteItem(n)).join('') :
-              '<p style="color:var(--text-muted);font-size:13px">Nenhuma anotação ainda.</p>'}
+            ${notes.length
+            ? notes.map(n => renderNoteItem(n)).join('')
+            : '<p style="color:var(--text-muted);font-size:13px">Nenhuma anotação.</p>'}
         </div>
-
         <div class="notes-input-row">
-            <textarea id="newNoteInput" class="notes-textarea"
-                      placeholder="Escreva sua anotação sobre esta questão..."
-                      rows="3"></textarea>
+            <textarea id="newNoteInput" class="notes-textarea" rows="3"
+                      placeholder="Escreva sua anotação..."></textarea>
             <button class="btn btn-primary btn-sm"
                     onclick="addNote(${questionId})">
                 💾 Salvar
             </button>
-        </div>
-    `;
+        </div>`;
 }
 
 function renderNoteItem(note) {
     const date = new Date(note.createdAt).toLocaleDateString('pt-BR');
     return `
     <div class="note-item" id="note-${note.id}">
-        <div class="note-text" id="note-text-${note.id}">${escapeHtml(note.note)}</div>
+        <div class="note-text" id="note-text-${note.id}">
+            ${escapeHtml(note.note)}
+        </div>
         <div class="note-meta">
             <span>${date}</span>
             <div style="display:flex;gap:6px">
@@ -627,9 +915,8 @@ function renderNoteItem(note) {
 
 async function addNote(questionId) {
     const input = document.getElementById('newNoteInput');
-    const text  = input?.value?.trim();
+    const text = input?.value?.trim();
     if (!text) { showToast('Escreva algo antes de salvar', 'error'); return; }
-
     try {
         const note = await API.post(`/questions/${questionId}/notes`, { note: text });
         const list = document.getElementById('notesList');
@@ -638,17 +925,16 @@ async function addNote(questionId) {
         list.insertAdjacentHTML('afterbegin', renderNoteItem(note));
         input.value = '';
         showToast('Anotação salva!', 'success');
-    } catch (e) {
-        showToast('Erro ao salvar anotação', 'error');
-    }
+    } catch (e) { showToast('Erro ao salvar anotação', 'error'); }
 }
 
 function editNote(noteId) {
     const textEl = document.getElementById(`note-text-${noteId}`);
-    const current = textEl.textContent;
+    const current = textEl.textContent.trim();
     textEl.innerHTML = `
-        <textarea id="edit-${noteId}" style="width:100%;padding:6px;border:1px solid var(--border);
-                  border-radius:6px;font-size:13px;resize:vertical"
+        <textarea id="edit-${noteId}"
+                  style="width:100%;padding:6px;border:1px solid var(--border);
+                         border-radius:6px;font-size:13px;resize:vertical"
                   rows="3">${current}</textarea>
         <div style="display:flex;gap:6px;margin-top:6px">
             <button class="btn btn-primary btn-sm"
@@ -662,22 +948,17 @@ function editNote(noteId) {
 
 async function saveEditNote(noteId) {
     const input = document.getElementById(`edit-${noteId}`);
-    const text  = input?.value?.trim();
+    const text = input?.value?.trim();
     if (!text) return;
-
     try {
         await API.put(`/questions/notes/${noteId}`, { note: text });
-        const textEl = document.getElementById(`note-text-${noteId}`);
-        textEl.innerHTML = escapeHtml(text);
+        document.getElementById(`note-text-${noteId}`).innerHTML = escapeHtml(text);
         showToast('Anotação atualizada!', 'success');
-    } catch (e) {
-        showToast('Erro ao atualizar', 'error');
-    }
+    } catch (e) { showToast('Erro ao atualizar', 'error'); }
 }
 
 function cancelEditNote(noteId, original) {
-    const textEl = document.getElementById(`note-text-${noteId}`);
-    textEl.textContent = original;
+    document.getElementById(`note-text-${noteId}`).textContent = original;
 }
 
 async function deleteNote(noteId) {
@@ -686,164 +967,11 @@ async function deleteNote(noteId) {
         await fetch(`/api/questions/notes/${noteId}`, { method: 'DELETE' });
         document.getElementById(`note-${noteId}`)?.remove();
         showToast('Anotação excluída', 'success');
-    } catch (e) {
-        showToast('Erro ao excluir', 'error');
-    }
+    } catch (e) { showToast('Erro ao excluir', 'error'); }
 }
 
-
-// ── Próxima questão ─────────────────────────────────────────────────────
-function nextQuestion() {
-    currentIndex++;
-    hide('feedbackArea');
-    show('questionArea');
-    renderQuestion();
-    schedulePrefetch(); // agenda pré-carregamento das próximas
-}
-
-// ── Resultado final ─────────────────────────────────────────────────────
-function showSessionResult() {
-    hide('questionArea');
-    hide('feedbackArea');
-    show('sessionResult');
-
-    const total = sessionStats.correct + sessionStats.wrong + sessionStats.skipped;
-    const acc   = total > 0
-        ? ((sessionStats.correct / total) * 100).toFixed(1)
-        : 0;
-
-    document.getElementById('sessionStats').innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:center">
-            <div class="score-card">
-                <span class="score-label">Corretas</span>
-                <span class="score-value green">${sessionStats.correct}</span>
-            </div>
-            <div class="score-card">
-                <span class="score-label">Erradas</span>
-                <span class="score-value red">${sessionStats.wrong}</span>
-            </div>
-            <div class="score-card highlight">
-                <span class="score-label">Aproveitamento</span>
-                <span class="score-value">${acc}%</span>
-            </div>
-        </div>`;
-}
-
-function restartStudy() {
-    currentIndex  = 0;
-    sessionStats  = { correct: 0, wrong: 0, skipped: 0 };
-    prefetchQueue = [];
-    hide('sessionResult');
-    show('topicSelector');
-}
-
-// ── Utilitários ─────────────────────────────────────────────────────────
-function show(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'block';
-}
-
-function hide(id) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-}
-
+// ── Utilitários ────────────────────────────────────────────────────────
 function setAnswerButtons(enabled) {
     document.querySelectorAll('.btn-certo, .btn-errado')
-            .forEach(b => b.disabled = !enabled);
-}
-
-// Chamado quando o usuário seleciona um tópico — antes de clicar em Iniciar
-async function onTopicSelected() {
-    const topicId = document.getElementById('topicSelect').value;
-    if (!topicId) {
-        hideSuggestionBanner();
-        return;
-    }
-
-    try {
-        const check = await API.get(`/ia-admin/topics/${topicId}/check`);
-        if (check.suggestGenerate) {
-            showSuggestionBanner(check);
-        } else {
-            hideSuggestionBanner();
-        }
-    } catch (_) {
-        hideSuggestionBanner();
-    }
-}
-
-function showSuggestionBanner(check) {
-    let banner = document.getElementById('suggestionBanner');
-    if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'suggestionBanner';
-        const selector = document.getElementById('topicSelector');
-        selector.appendChild(banner);
-    }
-
-    const isZero = check.total === 0;
-
-    banner.style.cssText = `
-        margin-top:14px;padding:14px 16px;border-radius:10px;
-        background:${isZero ? '#ede9fe' : '#fef9c3'};
-        border:1px solid ${isZero ? '#c4b5fd' : '#fde047'};
-        font-size:13px;color:${isZero ? '#5b21b6' : '#854d0e'};
-    `;
-
-    banner.innerHTML = `
-        <div style="display:flex;align-items:flex-start;gap:10px">
-            <span style="font-size:20px;flex-shrink:0">${isZero ? '🤖' : '💡'}</span>
-            <div style="flex:1">
-                <div style="font-weight:700;margin-bottom:4px">
-                    ${isZero ? 'Sem questões cadastradas' : 'Poucas questões disponíveis'}
-                </div>
-                <div style="margin-bottom:10px">${check.recommendation}</div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                    <button class="btn btn-sm"
-                            style="background:${isZero?'#7c3aed':'#d97706'};color:#fff"
-                            onclick="generateAndStart()">
-                        🤖 Gerar questões com IA e iniciar
-                    </button>
-                    ${!isZero ? `
-                    <button class="btn btn-secondary btn-sm"
-                            onclick="startStudyWithExisting()">
-                        📚 Usar as ${check.approved} questões existentes
-                    </button>` : ''}
-                </div>
-                ${check.ragChunks < 5 ? `
-                <div style="margin-top:8px;font-size:12px;opacity:.8">
-                    ⚠️ Banco vetorial com apenas ${check.ragChunks} chunk(s).
-                    Adicione material em Admin → Material RAG para melhorar a qualidade das questões geradas.
-                </div>` : ''}
-            </div>
-        </div>
-    `;
-}
-
-function hideSuggestionBanner() {
-    document.getElementById('suggestionBanner')?.remove();
-}
-
-async function generateAndStart() {
-    const topicId = document.getElementById('topicSelect').value;
-    if (!topicId) return;
-
-    hideSuggestionBanner();
-    const btn = document.querySelector('button[onclick="startStudy()"]');
-    if (btn) { btn.disabled = true; btn.textContent = '🤖 Gerando questões...'; }
-
-    try {
-        await API.post('/questions/generate', { topicId: parseInt(topicId), count: 10 });
-        showToast('Questões geradas! Iniciando estudo...', 'success');
-        await startStudy();
-    } catch (e) {
-        showToast('Erro ao gerar questões. Tente iniciar o estudo mesmo assim.', 'error');
-        if (btn) { btn.disabled = false; btn.textContent = '🚀 Iniciar Estudo'; }
-    }
-}
-
-async function startStudyWithExisting() {
-    hideSuggestionBanner();
-    await startStudy();
+        .forEach(b => b.disabled = !enabled);
 }

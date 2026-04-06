@@ -5,7 +5,7 @@ Proximas mudancas:
 
 
 
-0 - 
+0 - destacar palavras e termos juridicos e explicar o significado
 1 - Criar funcao na qual a ia gere as questoes mais frequentes apartir de uma pontacao de frequencia
 2 - dar opcao para escolher a quantidade de questoe que quero fazer e questoes ja feitas tirar da lista ate que seja restaurado manualmente ou concluido todas as questoes economizando
 permitir refazer apenas as questoes incorretas um determinado numero de vezes espacadamente e as corretas tambem, sendo que as erradas em tempos curtos e as respondidas corretamente e m um tempo maior como no anki
@@ -25,7 +25,7 @@ permitir refazer apenas as questoes incorretas um determinado numero de vezes es
 
  CONCLUIDAS:
    0 - no projeto java adicionar funcionalidade que permita processar a tabela de questoes com as questoes e respostas para a pipeline da base de conhecimento
-
+    1 -  no estudo reverso poder selecionar a quantidade de questoes e poder usar mais de um ou nao tde um topico misturando as questoes como se fosse em uma prova
 
 
 
