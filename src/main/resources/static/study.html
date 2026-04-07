@@ -33,27 +33,73 @@
         <!-- Seletor de Tópico -->
         <section class="section-card" id="topicSelector">
             <h2>Selecione o Tópico</h2>
-            <div class="filter-row">
-                <select id="contestSelect" onchange="loadTopics()">
-                    <option value="">Selecione o concurso</option>
-                </select>
-                <select id="topicSelect" onchange="onTopicSelected()">
-                    <option value="">Selecione o tópico</option>
-                </select>
-                <button class="btn btn-primary" onclick="startStudy()">
-                    🚀 Iniciar Estudo
-                </button>
-<!--                <button class="btn btn-secondary" onclick="generateAIQuestions()">-->
-<!--                    🤖 Gerar com IA-->
-<!--                </button>-->
-                <span class="hint" style="align-self:center">
-    💡                Se não houver questões no banco, a IA gera automaticamente.
-                 </span>
+            <div class="filter-row" style="margin-top:16px">
+                <div class="form-group">
+                    <label>Concurso</label>
+                    <select id="contestSelect" onchange="loadTopics()">
+                        <option value="">Selecione o concurso</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tópico</label>
+                    <select id="topicSelect" onchange="onTopicSelected()">
+                        <option value="">Selecione o tópico</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade de questões</label>
+                    <select id="questionLimitSelect">
+                        <option value="0">Todas disponíveis</option>
+                        <option value="5">5 questões</option>
+                        <option value="10" selected>10 questões</option>
+                        <option value="15">15 questões</option>
+                        <option value="20">20 questões</option>
+                        <option value="30">30 questões</option>
+                        <option value="50">50 questões</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ordem</label>
+                    <select id="questionOrderSelect">
+                        <option value="random">Aleatória</option>
+                        <option value="difficulty_asc">Mais fáceis primeiro</option>
+                        <option value="difficulty_desc">Mais difíceis primeiro</option>
+                        <option value="newest">Mais recentes</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content:flex-end">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary" onclick="startStudy()">
+                        🚀 Iniciar Estudo
+                    </button>
+                </div>
             </div>
+
+            <!-- Informações do tópico selecionado -->
+            <div id="topicInfo" class="topic-info-bar" style="display:none">
+                <div id="topicInfoContent"></div>
+            </div>
+
+            <!-- Banner de sugestão de geração IA -->
+            <div id="suggestionBanner" style="display:none"></div>
         </section>
 
         <!-- Área de Questão -->
         <section class="section-card" id="questionArea" style="display:none">
+            <!-- Adicione dentro do section#questionArea, antes do question-header -->
+
+            <!-- Barra de progresso da sessão -->
+            <div class="study-progress-track">
+                <div id="studyProgressBar" class="study-progress-fill"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;
+            font-size:11px;color:var(--text-muted);margin-bottom:10px">
+                <span id="studyProgressLabel"></span>
+                <span id="sessionInfoDisplay"></span>
+            </div>
+
+            <!-- Cabeçalho com info da sessão -->
+            <div id="sessionInfoHeader" class="session-info-header" style="display:none"></div>
             <div class="question-header">
                 <div class="question-progress">
                     Questão <span id="currentQ">1</span> de <span id="totalQ">0</span>
@@ -73,9 +119,7 @@
             <div id="prefetchIndicator" class="prefetch-indicator" style="display:none"></div>
             <!-- Botão ouvir questão -->
             <div class="action-row" style="margin-bottom:16px">
-                <button class="tts-btn"
-                        id="btnOuvirQuestao"
-                        onclick="ouvirQuestao()">
+                <button class="tts-btn" id="btnOuvirQuestao" onclick="ouvirQuestao()">
                     🔊 Ouvir questão
                 </button>
 
@@ -83,7 +127,7 @@
 
             </div>
             <div class="answer-buttons">
-                <button class="btn btn-certo"  onclick="answer(true)">✅ CERTO</button>
+                <button class="btn btn-certo" onclick="answer(true)">✅ CERTO</button>
                 <button class="btn btn-errado" onclick="answer(false)">❌ ERRADO</button>
             </div>
         </section>
@@ -127,6 +171,9 @@
                 <div id="professorTip" class="professor-tip"></div>
             </div>
 
+            <!-- Dicas de memorização -->
+            <div id="memoryTipBox" class="memory-tip-box" style="display:none"></div>
+
             <button class="btn btn-primary" onclick="nextQuestion()" style="margin-top:16px">
                 Próxima Questão →
             </button>
@@ -137,7 +184,7 @@
             <h2>🏁 Resultado da Sessão</h2>
             <div id="sessionStats" class="session-stats"></div>
             <div style="display:flex;gap:12px;margin-top:20px">
-                <button class="btn btn-primary"   onclick="restartStudy()">🔄 Estudar Novamente</button>
+                <button class="btn btn-primary" onclick="restartStudy()">🔄 Estudar Novamente</button>
                 <a href="/index.html" class="btn btn-secondary">← Dashboard</a>
             </div>
         </section>
@@ -145,8 +192,9 @@
 
     <script src="/js/api.js"></script>
     <script src="/js/study.js"></script>
-    <script src="/js/ia-admin.js"></script>  <!-- adicione esta linha -->
+    <script src="/js/ia-admin.js"></script> <!-- adicione esta linha -->
     <script src="/js/tts.js"></script>
+    <script src="/js/term-highlighter.js"></script>
 
 </body>
 

@@ -345,3 +345,384 @@ function hide(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
 }
+
+// ── Templates de provas ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    loadContestsIntoSelect('contestSelect');
+    loadExamTemplates();
+});
+
+async function loadExamTemplates() {
+    const sel = document.getElementById('examTemplateSelect');
+    if (!sel) return;
+    try {
+        const contestId = document.getElementById('contestSelect')?.value;
+        const url = contestId
+            ? `/simulations/exams/templates?contestId=${contestId}`
+            : '/simulations/exams/templates';
+        const templates = await API.get(url);
+
+        if (!templates.length) {
+            sel.innerHTML =
+                '<option value="">Nenhum template — faça upload de uma prova</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">Selecione um template...</option>' +
+            templates.map(t =>
+                `<option value="${t.id}"
+                         data-count="${t.totalQuestions}"
+                         data-status="${t.status}">
+                    ${t.name}
+                    ${t.year ? ` (${t.year})` : ''}
+                    — ${t.totalQuestions} questões
+                    ${t.status !== 'COMPLETED' ? ` [${t.status}]` : ''}
+                 </option>`
+            ).join('');
+    } catch (e) {
+        if (sel) sel.innerHTML =
+            '<option value="">Erro ao carregar templates</option>';
+    }
+}
+
+async function startFromTemplate(mode) {
+    const sel        = document.getElementById('examTemplateSelect');
+    const templateId = sel?.value;
+    if (!templateId) {
+        showToast('Selecione um template de prova', 'error'); return;
+    }
+    const contestId = document.getElementById('contestSelect')?.value;
+
+    try {
+        const result = await API.post(
+            `/simulations/exams/templates/${templateId}/simulate`,
+            { mode, contestId: contestId ? parseInt(contestId) : null }
+        );
+
+        if (mode === 'exact' && result.questions?.length) {
+            // Usa as questões do template diretamente
+            simulationId  = null;
+            simQuestions  = result.questions.map((q, i) => ({
+                id:        q.questionId || i,
+                statement: q.statement,
+                correctAnswer: q.answer,
+                source:    'PROVA-IMPORTADA',
+                trapKeywords: [],
+                difficulty: 'MEDIO',
+            }));
+            simCurrentIdx = 0;
+            simAnswers    = {};
+
+            hide('setupArea');
+            document.getElementById('simulationArea').style.display = 'block';
+            buildQuestionsNav();
+            renderSimQuestion(0);
+            startTimer(90 * 60); // 90 minutos padrão
+
+        } else if (mode === 'ai_variant') {
+            showToast('Variação IA gerada! Iniciando simulado...', 'success');
+            // Para variação IA, usa o sistema normal de simulado
+            await startSimulation();
+        }
+    } catch (e) {
+        showToast('Erro ao iniciar: ' + e.message, 'error');
+    }
+}
+
+async function uploadExamPdf() {
+    const file      = document.getElementById('examPdfFile')?.files[0];
+    const name      = document.getElementById('examName')?.value?.trim();
+    const year      = document.getElementById('examYear')?.value;
+    const contestId = document.getElementById('contestSelect')?.value;
+    const btn       = document.getElementById('btnUploadExam');
+    const resultEl  = document.getElementById('examUploadResult');
+
+    if (!file) { showToast('Selecione um arquivo PDF', 'error'); return; }
+    if (!name) { showToast('Informe o nome da prova', 'error');  return; }
+
+    btn.disabled    = true;
+    btn.textContent = '⏳ Enviando...';
+    resultEl.style.display  = 'block';
+    resultEl.className      = 'result-box';
+    resultEl.textContent    = '📤 Enviando PDF e processando com IA...';
+
+    try {
+        const form = new FormData();
+        form.append('file',      file);
+        form.append('name',      name);
+        if (year)      form.append('year',      year);
+        if (contestId) form.append('contestId', contestId);
+
+        const res = await fetch('/api/simulations/exams/upload', {
+            method: 'POST', body: form
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        resultEl.className = 'result-box success';
+        resultEl.innerHTML =
+            `✅ <strong>${data.name}</strong> recebida!<br>
+             <span style="font-size:12px;color:var(--text-muted)">
+             ${data.message} Template ID: ${data.templateId}
+             </span>`;
+
+        // Recarrega templates após upload
+        setTimeout(loadExamTemplates, 3000);
+
+    } catch (e) {
+        resultEl.className   = 'result-box error';
+        resultEl.textContent = `❌ Erro: ${e.message}`;
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '📤 Enviar e Processar com IA';
+    }
+}
+
+// ── Inicia simulado com config de concurso ──────────────────────────────
+async function startSimulation() {
+    const contestId      = document.getElementById('contestSelect').value;
+    const questionCount  = parseInt(document.getElementById('questionCount').value);
+    const timeLimitMin   = parseInt(document.getElementById('timeLimit').value);
+    const source         = document.getElementById('questionSource')?.value || 'ALL';
+    const modality       = document.getElementById('simModality')?.value || 'AMPLA';
+    const vacAmpla       = parseInt(document.getElementById('simVacAmpla')?.value || 0);
+    const vacQuota       = parseInt(document.getElementById('simVacQuota')?.value || 0);
+    const cutAmpla       = parseFloat(document.getElementById('simCutAmpla')?.value || 0) || null;
+    const cutQuota       = parseFloat(document.getElementById('simCutQuota')?.value || 0) || null;
+    const pointsCorrect  = parseFloat(document.getElementById('simPointsCorrect')?.value || 1.0);
+
+    if (!contestId) { showToast('Selecione um concurso', 'error'); return; }
+
+    const btn = document.querySelector('button[onclick="startSimulation()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Carregando...'; }
+
+    try {
+        const questions = await API.get(
+            `/questions/for-simulation?contestId=${contestId}` +
+            `&source=${source}&limit=${questionCount}`
+        );
+
+        if (!questions?.length) {
+            showToast('Nenhuma questão disponível.', 'error'); return;
+        }
+
+        const sim = await API.post('/simulations', {
+            contestId:      parseInt(contestId),
+            name:           `Simulado ${sourceLabel(source)} — ` +
+                            new Date().toLocaleDateString('pt-BR'),
+            questionCount:  questions.length,
+            timeLimitMin,
+            questionIds:    questions.map(q => q.id),
+            modality,
+            totalVacancies: vacAmpla,
+            quotaVacancies: vacQuota,
+            cutScoreAmpla:  cutAmpla,
+            cutScoreQuota:  cutQuota,
+            pointsCorrect,
+            pointsWrong:    pointsCorrect,  // Cebraspe: mesmo peso
+        });
+
+        simulationId  = sim.id;
+        simQuestions  = questions;
+        simCurrentIdx = 0;
+        simAnswers    = {};
+        _simConfig    = { modality, vacAmpla, vacQuota,
+                          cutAmpla, cutQuota, pointsCorrect };
+
+        hide('setupArea');
+        document.getElementById('simulationArea').style.display = 'block';
+        renderSourceBadge(source, questions.length);
+        buildQuestionsNav();
+        renderSimQuestion(0);
+        startTimer(timeLimitMin * 60);
+
+    } catch (e) {
+        console.error('[startSimulation]', e);
+        showToast('Erro ao criar simulado.', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Iniciar Simulado'; }
+    }
+}
+
+let _simConfig = {};
+
+// ── Renderiza resultado estendido ────────────────────────────────────────
+function renderResult(result) {
+    document.getElementById('simulationArea').style.display = 'none';
+    document.getElementById('resultArea').style.display     = 'block';
+
+    // Parseia report JSON
+    let report = {};
+    try { report = JSON.parse(result.reportJson || '{}'); } catch (_) {}
+
+    const cutStatus = report.cutScoreStatus || {};
+    const scenarios = report.scenarios      || [];
+    const strategies= report.strategies     || [];
+
+    // ── Score cards principais ───────────────────────────────────────────
+    document.getElementById('grossScore').textContent  = result.grossScore;
+    document.getElementById('netScore').textContent    = result.netScore;
+    document.getElementById('correctCount').textContent = result.correctCount;
+    document.getElementById('wrongCount').textContent   = result.wrongCount;
+
+    // ── Status vs nota de corte ──────────────────────────────────────────
+    const cutEl = document.getElementById('cutScoreStatus');
+    if (cutEl && cutStatus.cutScoreAmpla) {
+        const aClass = cutStatus.statusAmpla === 'APROVADO'
+                ? 'cut-approved' : 'cut-rejected';
+        const qClass = cutStatus.statusQuota === 'APROVADO'
+                ? 'cut-approved' : cutStatus.statusQuota === 'N/A'
+                ? 'cut-na' : 'cut-rejected';
+
+        cutEl.style.display = 'block';
+        cutEl.innerHTML = `
+            <h3 style="margin-bottom:12px">🎯 Status nas Notas de Corte</h3>
+
+            <div class="cut-score-grid">
+                <!-- Ampla Concorrência -->
+                <div class="cut-card ${aClass}">
+                    <div class="cut-card-title">Ampla Concorrência</div>
+                    <div class="cut-card-status">
+                        ${cutStatus.statusAmpla === 'APROVADO' ? '✅' : '❌'}
+                        ${cutStatus.statusAmpla}
+                    </div>
+                    <div class="cut-card-detail">
+                        Nota corte: <strong>${cutStatus.cutScoreAmpla}</strong>
+                    </div>
+                    <div class="cut-card-detail">
+                        Sua nota: <strong>${cutStatus.netScore}</strong>
+                    </div>
+                    ${cutStatus.statusAmpla !== 'APROVADO' ? `
+                    <div class="cut-card-need">
+                        Faltam: <strong>+${cutStatus.needMoreAmpla}</strong> pts
+                        (≈ ${cutStatus.questionsNeedAmpla} questões)
+                    </div>` : ''}
+                    <div class="cut-card-vac">
+                        ${cutStatus.vacanciesAmpla} vagas disponíveis
+                    </div>
+                </div>
+
+                <!-- Cota -->
+                <div class="cut-card ${qClass}">
+                    <div class="cut-card-title">
+                        Cota
+                        ${cutStatus.quotaPercentage > 0
+                            ? `(${cutStatus.quotaPercentage}% das vagas)` : ''}
+                    </div>
+                    <div class="cut-card-status">
+                        ${cutStatus.statusQuota === 'APROVADO' ? '✅' :
+                          cutStatus.statusQuota === 'N/A'      ? '—'  : '❌'}
+                        ${cutStatus.statusQuota}
+                    </div>
+                    ${cutStatus.cutScoreQuota ? `
+                    <div class="cut-card-detail">
+                        Nota corte: <strong>${cutStatus.cutScoreQuota}</strong>
+                    </div>
+                    <div class="cut-card-detail">
+                        Sua nota: <strong>${cutStatus.netScore}</strong>
+                    </div>
+                    ${cutStatus.statusQuota !== 'APROVADO' &&
+                      cutStatus.statusQuota !== 'N/A' ? `
+                    <div class="cut-card-need">
+                        Faltam: <strong>+${cutStatus.needMoreQuota}</strong> pts
+                    </div>` : ''}
+                    <div class="cut-card-vac">
+                        ${cutStatus.vacanciesQuota} vagas por cota
+                    </div>` : `
+                    <div style="color:var(--text-muted);font-size:13px">
+                        Nota de corte não configurada
+                    </div>`}
+                </div>
+            </div>
+
+            <!-- Dica de brancos ótimos -->
+            ${report.optimalBlank > 0 ? `
+            <div class="cut-blank-tip">
+                💡 <strong>Estratégia de brancos:</strong>
+                Dado seu desempenho atual, deixar
+                <strong>${report.optimalBlank} questão(ões)</strong>
+                em branco poderia ter maximizado sua nota líquida.
+            </div>` : ''}`;
+    }
+
+    // ── 5 Cenários ──────────────────────────────────────────────────────
+    const scenEl = document.getElementById('scenariosArea');
+    if (scenEl && scenarios.length) {
+        scenEl.style.display = 'block';
+        scenEl.innerHTML = `
+            <h3 style="margin-bottom:12px">📊 5 Cenários Comparativos</h3>
+            <div class="scenarios-grid">
+                ${scenarios.map((s, i) => {
+                    const isFirst  = i === 0;
+                    const approved = s.vsTarget === 'APROVADO';
+                    const borderCls = isFirst   ? 'scenario-current'
+                                    : approved  ? 'scenario-approved'
+                                    : 'scenario-default';
+                    return `
+                    <div class="scenario-card ${borderCls}">
+                        <div class="scenario-label">
+                            ${isFirst ? '📍' : approved ? '✅' : '📊'}
+                            ${s.label}
+                        </div>
+                        <div class="scenario-score">${s.netScore}</div>
+                        <div class="scenario-score-label">pts líquidos</div>
+                        <div class="scenario-breakdown">
+                            <span class="green">✅ ${s.correct}</span>
+                            <span class="red">❌ ${s.wrong}</span>
+                            <span>⬜ ${s.blank}</span>
+                        </div>
+                        <div class="scenario-status">
+                            ${s.vsTarget === 'APROVADO'
+                                ? '<span class="badge badge-success">Aprovado</span>'
+                                : s.vsTarget === 'REPROVADO'
+                                    ? '<span class="badge badge-danger">Reprovado</span>'
+                                    : '<span class="badge badge-info">—</span>'}
+                        </div>
+                        <div class="scenario-desc">${s.description}</div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+    }
+
+    // ── Estratégias ──────────────────────────────────────────────────────
+    const stratEl = document.getElementById('strategiesArea');
+    if (stratEl && strategies.length) {
+        stratEl.style.display = 'block';
+        stratEl.innerHTML = `
+            <h3 style="margin-bottom:12px">🧠 Estratégias Recomendadas</h3>
+            ${strategies.map(s => `
+                <div class="strategy-item">${s}</div>
+            `).join('')}`;
+    }
+
+    // ── Risco de chute ───────────────────────────────────────────────────
+    const riskEl = document.getElementById('riskLevel');
+    if (riskEl) {
+        riskEl.textContent = result.riskLevel;
+        riskEl.className   = `risk-level ${result.riskLevel}`;
+    }
+
+    const riskDescs = {
+        ALTO:   'Muitas respostas incertas. O chute está anulando seu desempenho.',
+        MEDIO:  'Atenção moderada ao chute. Priorize questões com maior certeza.',
+        BAIXO:  'Boa estratégia! Você está controlando bem o risco.',
+        NEUTRO: 'Muitas questões em branco. Estude mais para responder com confiança.'
+    };
+    const descEl = document.getElementById('riskDescription');
+    if (descEl) descEl.textContent = riskDescs[result.riskLevel] || '';
+
+    // ── Armadilhas ───────────────────────────────────────────────────────
+    const trapsBox = document.getElementById('trapsReportBox');
+    if (trapsBox) {
+        if (result.keywordTrapsHit?.length) {
+            trapsBox.style.display = 'block';
+            document.getElementById('trapsReport').innerHTML =
+                result.keywordTrapsHit
+                    .map(k => `<span class="trap-tag">${k}</span>`)
+                    .join('');
+        } else {
+            trapsBox.style.display = 'none';
+        }
+    }
+
+    renderSourceStats();
+}

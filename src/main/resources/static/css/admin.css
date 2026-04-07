@@ -1399,3 +1399,277 @@
     background: #fff7ed;
     color: #c2410c;
 }
+
+
+/* ── Term Tooltip ───────────────────────────────── */
+#termTooltip {
+    position: absolute;
+    z-index: 9999;
+    width: 300px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
+    font-size: 13px;
+    animation: fadeInTooltip .15s ease;
+}
+
+@keyframes fadeInTooltip {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tooltip-header {
+    padding: 10px 14px;
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.tooltip-term {
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.tooltip-cat {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+.tooltip-body {
+    padding: 10px 14px;
+}
+
+.tooltip-def {
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.tooltip-ref {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.tooltip-actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 0 0 10px 10px;
+}
+
+.tooltip-btn-copy {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.tooltip-btn-copy:hover {
+    background: #eff6ff;
+}
+
+.tooltip-btn-close {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.tooltip-btn-close:hover {
+    background: #fee2e2;
+}
+
+
+/* ── Memory Tip Box ─────────────────────────────── */
+.memory-tip-box {
+    background: linear-gradient(135deg, #faf5ff 0%, #f0fdf4 100%);
+    border: 1px solid #c4b5fd;
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 14px;
+}
+
+.memory-tip-header {
+    font-size: 13px;
+    font-weight: 800;
+    color: #5b21b6;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-bottom: 12px;
+}
+
+.memory-tip-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.memory-tip-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px dashed #ddd6fe;
+}
+
+.memory-tip-item:last-child {
+    border-bottom: none;
+}
+
+.memory-tip-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    width: 28px;
+    text-align: center;
+}
+
+.memory-tip-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #7c3aed;
+    margin-bottom: 3px;
+    letter-spacing: .3px;
+}
+
+.memory-tip-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+
+/* ── Exam Generator ─────────────────────────────── */
+.eg-template-list,
+.eg-exam-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.eg-template-card,
+.eg-exam-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    background: var(--surface);
+    transition: border-color .15s;
+}
+.eg-template-card:hover { border-color: var(--primary-light); }
+
+.eg-template-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+.eg-template-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Barra de dificuldade */
+.eg-diff-bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+.eg-diff-seg { display: flex; align-items: center; justify-content: center;
+               font-size: 9px; font-weight: 700; color: #fff; }
+.eg-diff-seg.facil   { background: var(--success); }
+.eg-diff-seg.medio   { background: var(--warning); }
+.eg-diff-seg.dificil { background: var(--danger);  }
+
+/* Linha de disciplina no form */
+.eg-disc-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--surface2);
+}
+
+/* Seção do form */
+.eg-form-section {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+.eg-form-section h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+/* Questão na visualização */
+.eg-question-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    background: var(--surface);
+}
+
+.eg-question-header {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.eg-question-num {
+    width: 28px;
+    height: 28px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.eg-question-stmt {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text);
+}
+
+.eg-explanation {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #fef9c3;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #854d0e;
+    line-height: 1.6;
+}

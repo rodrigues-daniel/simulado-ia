@@ -4,15 +4,54 @@ Proximas mudancas:
 
 
 
+Execute os sequintes procedimentos neste  prompt:
+1 - para ficar mais oganizado e claro, no modulo de estudo inverso organize os topicos nos forms poro disciplina  cadastradas da qual fazem parte.
+2 - para cada questao destaque os termos e expressoes tecnicos no modulo de estudo recerso, juridicos e administrativos e adicione alguma funcao para entender o termo, tipo um menu suspenso quando mouse porcima com funcionalidade de copiar
+3 - adicione tambem nas respostas das questoes do modulo estudo reverso dicas praticas e como memorizar para nao esquecer
+4 - para o simulador de risco da pagina simulado crie um form para envio de pdf com as provas passadas da banca cebraspe para que sejam  lidas pela IA, classificadas e armazenadas em banco de dados
+para serem recriadas como template  exatamente a mesma prova no sistema de simulado mas tambem ser usado como base no banco de cache e base de conhecimento para que a IA criae versoes diferentes quando solicitado. 
+5 - a funcao de upload de arquivos da ingestao para RAG nao esta funcionando apresenta os seguintes erros:  rag-upload.js:583 Uncaught RangeError: Maximum call stack size exceeded
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+    at processFileSelection (rag-upload.js:583:5)
+processFileSelection @ rag-upload.js:583
+processFileSelection @ rag-upload.js:583
+processFileSelection @ rag-upload.js:583
+processFileSelection @ rag-upload.js:583
+processFileSelection @ rag-upload.js:583
+processFileSelection @ rag-upload.js:583
 
-0 - 
-1 - Criar funcao na qual a ia gere as questoes mais frequentes apartir de uma pontacao de frequencia
-2 - dar opcao para escolher a quantidade de questoe que quero fazer e questoes ja feitas tirar da lista ate que seja restaurado manualmente ou concluido todas as questoes economizando
+
+prioridade maxima - 1 ler um ou mais pdfs de questoes de provas anteriores e gerar um simulador baseado nele apartir da banca informada sendo a sebraspe default
+0 - destacar palavras, termos e expressoes juridicas e administrativas, explicar o significado
+1 - questoes ja respondidas bloquear para novas sessoes anao ser que seja feita revisao ou ate serem desbloquadas manualmente ou pode default conclusao de todas as questoes disponiveis para o topico
+2 - no simular criar uma opcao de criador de provas automatica por banca default cesbrape
+
+
+
+2 - Criar funcao na qual a ia gere as questoes mais frequentes apartir de uma pontacao de frequencia
+3 - dar opcao para escolher a quantidade de questoe que quero fazer e questoes ja feitas tirar da lista ate que seja restaurado manualmente ou concluido todas as questoes economizando
 permitir refazer apenas as questoes incorretas um determinado numero de vezes espacadamente e as corretas tambem, sendo que as erradas em tempos curtos e as respondidas corretamente e m um tempo maior como no anki
-2 - nas questoes de estudo reverso incluir funcao para que explique os termos apresentados e significados usando ia
-2 - corrigir o upload de arquivos que nao esta funcionando
+3 - nas questoes de estudo reverso incluir funcao para que explique os termos apresentados e significados usando ia
+4 - corrigir o upload de arquivos que nao esta funcionando
 
 
+
+[{
+  "name": "TCE-RN - Técnico Administrativo",
+  "organ": "Tribunal de contas do Rio Grande do Norte",
+  "role": "Técnico Administrativo",
+  "year": 2026,
+  "level": "MEDIO",
+  "isDefault": false
+}]
 
 
 
@@ -25,7 +64,7 @@ permitir refazer apenas as questoes incorretas um determinado numero de vezes es
 
  CONCLUIDAS:
    0 - no projeto java adicionar funcionalidade que permita processar a tabela de questoes com as questoes e respostas para a pipeline da base de conhecimento
-
+    1 -  no estudo reverso poder selecionar a quantidade de questoes e poder usar mais de um ou nao tde um topico misturando as questoes como se fosse em uma prova
 
 
 

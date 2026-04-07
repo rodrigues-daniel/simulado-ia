@@ -62,6 +62,7 @@ function switchTab(tabName) {
   if (tabName === 'topics-view')  initTopicsView();
   if (tabName === 'ia-questions') initIAAdmin();
   if (tabName === 'rag-knowledge') initKnowledgeAdmin();
+  if (tabName === 'exam-gen') initExamGenerator();
 
 }
 

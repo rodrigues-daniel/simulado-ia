@@ -18,7 +18,7 @@ public class SimulationController {
     private final SimulationRepository simulationRepository;
 
     public SimulationController(SimulationService simulationService,
-                                SimulationRepository simulationRepository) {
+                                 SimulationRepository simulationRepository) {
         this.simulationService    = simulationService;
         this.simulationRepository = simulationRepository;
     }
@@ -31,7 +31,14 @@ public class SimulationController {
                 req.name(),
                 req.questionCount(),
                 req.timeLimitMin(),
-                req.questionIds()   // ← IDs das questões escolhidas
+                req.questionIds(),
+                req.modality(),
+                req.totalVacancies(),
+                req.quotaVacancies(),
+                req.cutScoreAmpla(),
+                req.cutScoreQuota(),
+                req.pointsCorrect(),
+                req.pointsWrong()
         ));
     }
 
@@ -71,10 +78,17 @@ public class SimulationController {
     }
 
     public record CreateSimulationRequest(
-            Long         contestId,
-            String       name,
-            Integer      questionCount,
-            Integer      timeLimitMin,
-            List<Long>   questionIds    // ← campo novo
+            Long       contestId,
+            String     name,
+            Integer    questionCount,
+            Integer    timeLimitMin,
+            List<Long> questionIds,
+            String     modality,
+            Integer    totalVacancies,
+            Integer    quotaVacancies,
+            Double     cutScoreAmpla,
+            Double     cutScoreQuota,
+            Double     pointsCorrect,
+            Double     pointsWrong
     ) {}
 }
