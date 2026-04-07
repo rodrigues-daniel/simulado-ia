@@ -54,7 +54,11 @@
             <button class="tab" onclick="switchTab('rag-knowledge')">
                 🧠 Base de Conhecimento IA
             </button>
+            <button class="tab" onclick="switchTab('exam-gen')">
+                📝 Gerador de Provas
+            </button>
         </div>
+
 
         <!-- Tab: Concursos -->
         <section id="tab-contests" class="tab-content section-card active">
@@ -139,6 +143,90 @@
             </div>
             <div id="questionsResult" class="result-box"></div>
         </section>
+
+
+        <!-- Tab: Gerador de Provas -->
+        <section id="tab-exam-gen" class="tab-content section-card"
+                 style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;
+                margin-bottom:20px">
+                <div>
+                    <h2>📝 Gerador de Provas — Estilo Cebraspe</h2>
+                    <p class="hint">
+                        Configure templates com disciplinas e conteúdos.
+                        A IA gera provas completas com gabarito.
+                    </p>
+                </div>
+                <button class="btn btn-primary" onclick="openNewTemplate()">
+                    ➕ Novo Template
+                </button>
+            </div>
+
+            <div class="filter-row" style="margin-bottom:16px">
+                <div class="form-group">
+                    <label>Filtrar por Concurso</label>
+                    <select id="egContestFilter" onchange="loadTemplates()">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content:flex-end">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="loadTemplates()">
+                        🔄 Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Templates -->
+            <h3 style="margin-bottom:10px">📋 Templates</h3>
+            <div id="egTemplateList" class="eg-template-list"></div>
+
+            <!-- Provas geradas -->
+            <div style="margin-top:28px;border-top:2px solid var(--border);
+                padding-top:20px">
+                <div style="display:flex;justify-content:space-between;
+                    align-items:center;margin-bottom:12px">
+                    <h3>📄 Provas Geradas</h3>
+                    <button class="btn btn-secondary btn-sm"
+                            onclick="loadGeneratedExams()">
+                        🔄 Atualizar
+                    </button>
+                </div>
+                <div id="egExamList" class="eg-exam-list"></div>
+            </div>
+        </section>
+
+        <!-- Modal de Template -->
+        <div id="egTemplateModal" class="modal-overlay"
+             onclick="if(event.target.id==='egTemplateModal')closeTemplateModal()">
+            <div class="modal-box" style="max-width:800px">
+                <div class="modal-header" style="background:#1a3c6b">
+                    <h3 id="egModalTitle">➕ Novo Template</h3>
+                    <button class="modal-close"
+                            onclick="closeTemplateModal()">✕</button>
+                </div>
+                <div class="modal-body" id="egTemplateBody" style="padding:20px">
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Visualização da Prova -->
+        <div id="egExamViewModal" class="modal-overlay"
+             onclick="if(event.target.id==='egExamViewModal')closeExamViewModal()">
+            <div class="modal-box" style="max-width:900px">
+                <div class="modal-header" style="background:#0f766e">
+                    <h3 id="egExamViewTitle">Prova Gerada</h3>
+                    <button class="modal-close"
+                            onclick="closeExamViewModal()">✕</button>
+                </div>
+                <div class="modal-body" id="egExamViewBody"
+                     style="padding:20px;max-height:75vh;overflow-y:auto">
+                </div>
+            </div>
+        </div>
+
+
 
         <!-- Tab: RAG -->
         <section id="tab-rag" class="tab-content section-card" style="display:none">
@@ -672,6 +760,7 @@
     <script src="/js/ia-admin.js"></script>
     <script src="/js/rag-upload.js"></script>
     <script src="/js/knowledge-admin.js"></script>
+    <script src="/js/exam-generator.js"></script>
 
     <script>
         // Atualiza estimativa de tokens ao digitar

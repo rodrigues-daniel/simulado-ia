@@ -476,3 +476,253 @@ async function uploadExamPdf() {
         btn.textContent = '📤 Enviar e Processar com IA';
     }
 }
+
+// ── Inicia simulado com config de concurso ──────────────────────────────
+async function startSimulation() {
+    const contestId      = document.getElementById('contestSelect').value;
+    const questionCount  = parseInt(document.getElementById('questionCount').value);
+    const timeLimitMin   = parseInt(document.getElementById('timeLimit').value);
+    const source         = document.getElementById('questionSource')?.value || 'ALL';
+    const modality       = document.getElementById('simModality')?.value || 'AMPLA';
+    const vacAmpla       = parseInt(document.getElementById('simVacAmpla')?.value || 0);
+    const vacQuota       = parseInt(document.getElementById('simVacQuota')?.value || 0);
+    const cutAmpla       = parseFloat(document.getElementById('simCutAmpla')?.value || 0) || null;
+    const cutQuota       = parseFloat(document.getElementById('simCutQuota')?.value || 0) || null;
+    const pointsCorrect  = parseFloat(document.getElementById('simPointsCorrect')?.value || 1.0);
+
+    if (!contestId) { showToast('Selecione um concurso', 'error'); return; }
+
+    const btn = document.querySelector('button[onclick="startSimulation()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Carregando...'; }
+
+    try {
+        const questions = await API.get(
+            `/questions/for-simulation?contestId=${contestId}` +
+            `&source=${source}&limit=${questionCount}`
+        );
+
+        if (!questions?.length) {
+            showToast('Nenhuma questão disponível.', 'error'); return;
+        }
+
+        const sim = await API.post('/simulations', {
+            contestId:      parseInt(contestId),
+            name:           `Simulado ${sourceLabel(source)} — ` +
+                            new Date().toLocaleDateString('pt-BR'),
+            questionCount:  questions.length,
+            timeLimitMin,
+            questionIds:    questions.map(q => q.id),
+            modality,
+            totalVacancies: vacAmpla,
+            quotaVacancies: vacQuota,
+            cutScoreAmpla:  cutAmpla,
+            cutScoreQuota:  cutQuota,
+            pointsCorrect,
+            pointsWrong:    pointsCorrect,  // Cebraspe: mesmo peso
+        });
+
+        simulationId  = sim.id;
+        simQuestions  = questions;
+        simCurrentIdx = 0;
+        simAnswers    = {};
+        _simConfig    = { modality, vacAmpla, vacQuota,
+                          cutAmpla, cutQuota, pointsCorrect };
+
+        hide('setupArea');
+        document.getElementById('simulationArea').style.display = 'block';
+        renderSourceBadge(source, questions.length);
+        buildQuestionsNav();
+        renderSimQuestion(0);
+        startTimer(timeLimitMin * 60);
+
+    } catch (e) {
+        console.error('[startSimulation]', e);
+        showToast('Erro ao criar simulado.', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🚀 Iniciar Simulado'; }
+    }
+}
+
+let _simConfig = {};
+
+// ── Renderiza resultado estendido ────────────────────────────────────────
+function renderResult(result) {
+    document.getElementById('simulationArea').style.display = 'none';
+    document.getElementById('resultArea').style.display     = 'block';
+
+    // Parseia report JSON
+    let report = {};
+    try { report = JSON.parse(result.reportJson || '{}'); } catch (_) {}
+
+    const cutStatus = report.cutScoreStatus || {};
+    const scenarios = report.scenarios      || [];
+    const strategies= report.strategies     || [];
+
+    // ── Score cards principais ───────────────────────────────────────────
+    document.getElementById('grossScore').textContent  = result.grossScore;
+    document.getElementById('netScore').textContent    = result.netScore;
+    document.getElementById('correctCount').textContent = result.correctCount;
+    document.getElementById('wrongCount').textContent   = result.wrongCount;
+
+    // ── Status vs nota de corte ──────────────────────────────────────────
+    const cutEl = document.getElementById('cutScoreStatus');
+    if (cutEl && cutStatus.cutScoreAmpla) {
+        const aClass = cutStatus.statusAmpla === 'APROVADO'
+                ? 'cut-approved' : 'cut-rejected';
+        const qClass = cutStatus.statusQuota === 'APROVADO'
+                ? 'cut-approved' : cutStatus.statusQuota === 'N/A'
+                ? 'cut-na' : 'cut-rejected';
+
+        cutEl.style.display = 'block';
+        cutEl.innerHTML = `
+            <h3 style="margin-bottom:12px">🎯 Status nas Notas de Corte</h3>
+
+            <div class="cut-score-grid">
+                <!-- Ampla Concorrência -->
+                <div class="cut-card ${aClass}">
+                    <div class="cut-card-title">Ampla Concorrência</div>
+                    <div class="cut-card-status">
+                        ${cutStatus.statusAmpla === 'APROVADO' ? '✅' : '❌'}
+                        ${cutStatus.statusAmpla}
+                    </div>
+                    <div class="cut-card-detail">
+                        Nota corte: <strong>${cutStatus.cutScoreAmpla}</strong>
+                    </div>
+                    <div class="cut-card-detail">
+                        Sua nota: <strong>${cutStatus.netScore}</strong>
+                    </div>
+                    ${cutStatus.statusAmpla !== 'APROVADO' ? `
+                    <div class="cut-card-need">
+                        Faltam: <strong>+${cutStatus.needMoreAmpla}</strong> pts
+                        (≈ ${cutStatus.questionsNeedAmpla} questões)
+                    </div>` : ''}
+                    <div class="cut-card-vac">
+                        ${cutStatus.vacanciesAmpla} vagas disponíveis
+                    </div>
+                </div>
+
+                <!-- Cota -->
+                <div class="cut-card ${qClass}">
+                    <div class="cut-card-title">
+                        Cota
+                        ${cutStatus.quotaPercentage > 0
+                            ? `(${cutStatus.quotaPercentage}% das vagas)` : ''}
+                    </div>
+                    <div class="cut-card-status">
+                        ${cutStatus.statusQuota === 'APROVADO' ? '✅' :
+                          cutStatus.statusQuota === 'N/A'      ? '—'  : '❌'}
+                        ${cutStatus.statusQuota}
+                    </div>
+                    ${cutStatus.cutScoreQuota ? `
+                    <div class="cut-card-detail">
+                        Nota corte: <strong>${cutStatus.cutScoreQuota}</strong>
+                    </div>
+                    <div class="cut-card-detail">
+                        Sua nota: <strong>${cutStatus.netScore}</strong>
+                    </div>
+                    ${cutStatus.statusQuota !== 'APROVADO' &&
+                      cutStatus.statusQuota !== 'N/A' ? `
+                    <div class="cut-card-need">
+                        Faltam: <strong>+${cutStatus.needMoreQuota}</strong> pts
+                    </div>` : ''}
+                    <div class="cut-card-vac">
+                        ${cutStatus.vacanciesQuota} vagas por cota
+                    </div>` : `
+                    <div style="color:var(--text-muted);font-size:13px">
+                        Nota de corte não configurada
+                    </div>`}
+                </div>
+            </div>
+
+            <!-- Dica de brancos ótimos -->
+            ${report.optimalBlank > 0 ? `
+            <div class="cut-blank-tip">
+                💡 <strong>Estratégia de brancos:</strong>
+                Dado seu desempenho atual, deixar
+                <strong>${report.optimalBlank} questão(ões)</strong>
+                em branco poderia ter maximizado sua nota líquida.
+            </div>` : ''}`;
+    }
+
+    // ── 5 Cenários ──────────────────────────────────────────────────────
+    const scenEl = document.getElementById('scenariosArea');
+    if (scenEl && scenarios.length) {
+        scenEl.style.display = 'block';
+        scenEl.innerHTML = `
+            <h3 style="margin-bottom:12px">📊 5 Cenários Comparativos</h3>
+            <div class="scenarios-grid">
+                ${scenarios.map((s, i) => {
+                    const isFirst  = i === 0;
+                    const approved = s.vsTarget === 'APROVADO';
+                    const borderCls = isFirst   ? 'scenario-current'
+                                    : approved  ? 'scenario-approved'
+                                    : 'scenario-default';
+                    return `
+                    <div class="scenario-card ${borderCls}">
+                        <div class="scenario-label">
+                            ${isFirst ? '📍' : approved ? '✅' : '📊'}
+                            ${s.label}
+                        </div>
+                        <div class="scenario-score">${s.netScore}</div>
+                        <div class="scenario-score-label">pts líquidos</div>
+                        <div class="scenario-breakdown">
+                            <span class="green">✅ ${s.correct}</span>
+                            <span class="red">❌ ${s.wrong}</span>
+                            <span>⬜ ${s.blank}</span>
+                        </div>
+                        <div class="scenario-status">
+                            ${s.vsTarget === 'APROVADO'
+                                ? '<span class="badge badge-success">Aprovado</span>'
+                                : s.vsTarget === 'REPROVADO'
+                                    ? '<span class="badge badge-danger">Reprovado</span>'
+                                    : '<span class="badge badge-info">—</span>'}
+                        </div>
+                        <div class="scenario-desc">${s.description}</div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+    }
+
+    // ── Estratégias ──────────────────────────────────────────────────────
+    const stratEl = document.getElementById('strategiesArea');
+    if (stratEl && strategies.length) {
+        stratEl.style.display = 'block';
+        stratEl.innerHTML = `
+            <h3 style="margin-bottom:12px">🧠 Estratégias Recomendadas</h3>
+            ${strategies.map(s => `
+                <div class="strategy-item">${s}</div>
+            `).join('')}`;
+    }
+
+    // ── Risco de chute ───────────────────────────────────────────────────
+    const riskEl = document.getElementById('riskLevel');
+    if (riskEl) {
+        riskEl.textContent = result.riskLevel;
+        riskEl.className   = `risk-level ${result.riskLevel}`;
+    }
+
+    const riskDescs = {
+        ALTO:   'Muitas respostas incertas. O chute está anulando seu desempenho.',
+        MEDIO:  'Atenção moderada ao chute. Priorize questões com maior certeza.',
+        BAIXO:  'Boa estratégia! Você está controlando bem o risco.',
+        NEUTRO: 'Muitas questões em branco. Estude mais para responder com confiança.'
+    };
+    const descEl = document.getElementById('riskDescription');
+    if (descEl) descEl.textContent = riskDescs[result.riskLevel] || '';
+
+    // ── Armadilhas ───────────────────────────────────────────────────────
+    const trapsBox = document.getElementById('trapsReportBox');
+    if (trapsBox) {
+        if (result.keywordTrapsHit?.length) {
+            trapsBox.style.display = 'block';
+            document.getElementById('trapsReport').innerHTML =
+                result.keywordTrapsHit
+                    .map(k => `<span class="trap-tag">${k}</span>`)
+                    .join('');
+        } else {
+            trapsBox.style.display = 'none';
+        }
+    }
+
+    renderSourceStats();
+}

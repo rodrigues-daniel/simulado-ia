@@ -3,6 +3,7 @@ package br.cebraspe.simulado.ai.rag;
 import br.cebraspe.simulado.ai.pipeline.RagPipelineService;
 import br.cebraspe.simulado.domain.question.Question;
 import br.cebraspe.simulado.domain.question.QuestionRepository;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.Loader;
@@ -22,35 +23,36 @@ import java.util.stream.Collectors;
 @Service
 public class ExamImportService {
 
-    private static final Logger log = LoggerFactory.getLogger(ExamImportService.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(ExamImportService.class);
 
     private static final int MAX_CHARS_PER_CHUNK = 6_000;
-    private static final int PAGES_PER_BATCH = 10;
+    private static final int PAGES_PER_BATCH     = 10;
 
-    private final JdbcClient jdbcClient;
-    private final RagPipelineService pipeline;
+    private final JdbcClient          jdbcClient;
+    private final RagPipelineService  pipeline;
     private final KnowledgeRepository knowledgeRepository;
-    private final QuestionRepository questionRepository;
-    private final ObjectMapper objectMapper;
+    private final QuestionRepository  questionRepository;
+    private final ObjectMapper        objectMapper;
 
     public ExamImportService(JdbcClient jdbcClient,
-            RagPipelineService pipeline,
-            KnowledgeRepository knowledgeRepository,
-            QuestionRepository questionRepository,
-            ObjectMapper objectMapper) {
-        this.jdbcClient = jdbcClient;
-        this.pipeline = pipeline;
+                             RagPipelineService pipeline,
+                             KnowledgeRepository knowledgeRepository,
+                             QuestionRepository questionRepository,
+                             ObjectMapper objectMapper) {
+        this.jdbcClient          = jdbcClient;
+        this.pipeline            = pipeline;
         this.knowledgeRepository = knowledgeRepository;
-        this.questionRepository = questionRepository;
-        this.objectMapper = objectMapper;
+        this.questionRepository  = questionRepository;
+        this.objectMapper        = objectMapper;
     }
 
     // ── Recebe o upload e registra ────────────────────────────────────────
     public Map<String, Object> importExam(MultipartFile file,
-            String name,
-            Long contestId,
-            Integer year,
-            String role) throws IOException {
+                                          String name,
+                                          Long contestId,
+                                          Integer year,
+                                          String role) throws IOException {
         long sizeMb = file.getSize() / 1024 / 1024;
         if (sizeMb > 100) {
             throw new IllegalArgumentException(
@@ -65,10 +67,10 @@ public class ExamImportService {
                 VALUES (:name, :contestId, :year, :role, 'PROCESSING', :sourceFile)
                 RETURNING id
                 """)
-                .param("name", name)
-                .param("contestId", contestId)
-                .param("year", year)
-                .param("role", role)
+                .param("name",       name)
+                .param("contestId",  contestId)
+                .param("year",       year)
+                .param("role",       role)
                 .param("sourceFile", file.getOriginalFilename())
                 .query(Long.class)
                 .single();
@@ -77,15 +79,16 @@ public class ExamImportService {
 
         return Map.of(
                 "templateId", templateId,
-                "name", name,
-                "status", "PROCESSING",
-                "message", "Prova recebida. Processando em background...");
+                "name",       name,
+                "status",     "PROCESSING",
+                "message",    "Prova recebida. Processando em background..."
+        );
     }
 
     // ── Processamento assíncrono ──────────────────────────────────────────
     @Async
     public void processExamAsync(Long templateId, byte[] pdfBytes,
-            String name, Long contestId) {
+                                 String name, Long contestId) {
         log.info("Iniciando processamento: template={} name={}", templateId, name);
 
         List<Map<String, Object>> allQuestions = new ArrayList<>();
@@ -98,7 +101,9 @@ public class ExamImportService {
             log.info("PDF '{}': {} páginas", name, totalPages);
 
             // Processa em lotes para controlar memória
-            for (int startPage = 1; startPage <= totalPages; startPage += PAGES_PER_BATCH) {
+            for (int startPage = 1;
+                 startPage <= totalPages;
+                 startPage += PAGES_PER_BATCH) {
 
                 int endPage = Math.min(
                         startPage + PAGES_PER_BATCH - 1, totalPages);
@@ -109,8 +114,7 @@ public class ExamImportService {
                 log.debug("Lote páginas {}-{}: {} chars",
                         startPage, endPage, pageText.length());
 
-                if (pageText.isBlank())
-                    continue;
+                if (pageText.isBlank()) continue;
 
                 List<String> chunks = splitIntoChunks(
                         pageText, MAX_CHARS_PER_CHUNK);
@@ -154,7 +158,7 @@ public class ExamImportService {
                 WHERE id   = :id
                 """)
                 .param("total", saved)
-                .param("id", templateId)
+                .param("id",    templateId)
                 .update();
 
         log.info("Prova '{}' concluída: {} questões (templateId={})",
@@ -163,8 +167,8 @@ public class ExamImportService {
 
     // ── CORREÇÃO 2: tipo explícito PDDocument, não var ────────────────────
     private String extractPageRange(PDDocument doc,
-            int startPage,
-            int endPage) throws IOException {
+                                    int startPage,
+                                    int endPage) throws IOException {
         PDFTextStripper stripper = new PDFTextStripper();
         stripper.setStartPage(startPage);
         stripper.setEndPage(endPage);
@@ -174,7 +178,7 @@ public class ExamImportService {
 
     // ── Indexa resumo no RAG (apenas primeiras páginas) ───────────────────
     private void indexExamSummary(byte[] pdfBytes,
-            String name, Long contestId) {
+                                  String name, Long contestId) {
         // ── CORREÇÃO 3: mesma correção no segundo uso de Loader ────────────
         try (PDDocument doc = Loader.loadPDF(pdfBytes)) {
 
@@ -183,12 +187,12 @@ public class ExamImportService {
 
             if (!summary.isBlank()) {
                 String truncated = summary.length() > 3000
-                        ? summary.substring(0, 3000)
-                        : summary;
+                        ? summary.substring(0, 3000) : summary;
                 knowledgeRepository.save(
                         truncated, "Prova Cebraspe",
                         null, contestId,
-                        "Prova: " + name);
+                        "Prova: " + name
+                );
             }
         } catch (Exception e) {
             log.warn("Falha ao indexar resumo: {}", e.getMessage());
@@ -260,9 +264,9 @@ public class ExamImportService {
                             "Responda apenas JSON.");
 
             String json = extractJsonArray(response.resposta());
-            List<Map<String, Object>> list = objectMapper.readValue(
-                    json, new TypeReference<>() {
-                    });
+            List<Map<String, Object>> list =
+                    objectMapper.readValue(
+                            json, new TypeReference<>() {});
 
             return list.stream()
                     .filter(q -> q.get("statement") != null
@@ -279,23 +283,20 @@ public class ExamImportService {
     private List<Map<String, Object>> deduplicateQuestions(
             List<Map<String, Object>> questions) {
 
-        Set<String> seen = new LinkedHashSet<>();
-        Set<Object> seenNums = new LinkedHashSet<>();
+        Set<String>  seen     = new LinkedHashSet<>();
+        Set<Object>  seenNums = new LinkedHashSet<>();
         List<Map<String, Object>> result = new ArrayList<>();
 
         for (var q : questions) {
-            Object num = q.get("number");
+            Object num  = q.get("number");
             String stmt = ((String) q.getOrDefault("statement", ""))
                     .trim();
-            String key = stmt.substring(0, Math.min(60, stmt.length()));
+            String key  = stmt.substring(0, Math.min(60, stmt.length()));
 
-            if (num != null && seenNums.contains(num))
-                continue;
-            if (seen.contains(key))
-                continue;
+            if (num != null && seenNums.contains(num)) continue;
+            if (seen.contains(key)) continue;
 
-            if (num != null)
-                seenNums.add(num);
+            if (num != null) seenNums.add(num);
             seen.add(key);
             result.add(q);
         }
@@ -318,9 +319,8 @@ public class ExamImportService {
             var q = questions.get(i);
             try {
                 Object numObj = q.getOrDefault("number", i + 1);
-                int num = numObj instanceof Number n
-                        ? n.intValue()
-                        : i + 1;
+                int    num    = numObj instanceof Number n
+                        ? n.intValue() : i + 1;
 
                 jdbcClient.sql("""
                         INSERT INTO exam_template_questions
@@ -329,12 +329,12 @@ public class ExamImportService {
                              discipline_suggested)
                         VALUES (:tid, :num, :stmt, :answer, :topic, :disc)
                         """)
-                        .param("tid", templateId)
-                        .param("num", num)
-                        .param("stmt", q.get("statement"))
+                        .param("tid",    templateId)
+                        .param("num",    num)
+                        .param("stmt",   q.get("statement"))
                         .param("answer", parseBoolean(q.get("answer")))
-                        .param("topic", q.get("topic"))
-                        .param("disc", q.get("discipline"))
+                        .param("topic",  q.get("topic"))
+                        .param("disc",   q.get("discipline"))
                         .update();
                 saved++;
             } catch (Exception e) {
@@ -349,37 +349,32 @@ public class ExamImportService {
                 UPDATE exam_templates SET status = :status WHERE id = :id
                 """)
                 .param("status", status)
-                .param("id", templateId)
+                .param("id",     templateId)
                 .update();
         log.error("Template {} → {}: {}", templateId, status, error);
     }
 
     private Boolean parseBoolean(Object val) {
-        if (val == null)
-            return null;
-        if (val instanceof Boolean b)
-            return b;
+        if (val == null) return null;
+        if (val instanceof Boolean b) return b;
         String s = val.toString().toLowerCase();
         return s.equals("true") || s.equals("certo")
-                || s.equals("c") || s.equals("v");
+                || s.equals("c")    || s.equals("v");
     }
 
     private String extractJsonArray(String text) {
-        if (text == null)
-            return "[]";
+        if (text == null) return "[]";
         int start = text.indexOf('[');
-        int end = text.lastIndexOf(']');
+        int end   = text.lastIndexOf(']');
         return (start >= 0 && end > start)
-                ? text.substring(start, end + 1)
-                : "[]";
+                ? text.substring(start, end + 1) : "[]";
     }
 
     // ── Métodos públicos (listTemplates, getTemplate etc.) ─────────────────
 
     public List<Map<String, Object>> listTemplates(Long contestId) {
         String filter = contestId != null
-                ? "WHERE et.contest_id = :contestId "
-                : "";
+                ? "WHERE et.contest_id = :contestId " : "";
         var q = jdbcClient.sql("""
                 SELECT et.id, et.name, et.year, et.role, et.status,
                        et.total_questions, et.created_at,
@@ -388,19 +383,18 @@ public class ExamImportService {
                 LEFT JOIN contests c ON et.contest_id = c.id
                 """ + filter + "ORDER BY et.created_at DESC");
 
-        if (contestId != null)
-            q = q.param("contestId", contestId);
+        if (contestId != null) q = q.param("contestId", contestId);
 
         return q.query((rs, n) -> {
             var m = new LinkedHashMap<String, Object>();
-            m.put("id", rs.getLong("id"));
-            m.put("name", rs.getString("name"));
-            m.put("year", rs.getObject("year"));
-            m.put("role", rs.getString("role"));
-            m.put("status", rs.getString("status"));
+            m.put("id",             rs.getLong("id"));
+            m.put("name",           rs.getString("name"));
+            m.put("year",           rs.getObject("year"));
+            m.put("role",           rs.getString("role"));
+            m.put("status",         rs.getString("status"));
             m.put("totalQuestions", rs.getInt("total_questions"));
-            m.put("contestName", rs.getString("contest_name"));
-            m.put("createdAt", rs.getTimestamp("created_at"));
+            m.put("contestName",    rs.getString("contest_name"));
+            m.put("createdAt",      rs.getTimestamp("created_at"));
             return (Map<String, Object>) m;
         }).list();
     }
@@ -415,13 +409,13 @@ public class ExamImportService {
                 .param("id", templateId)
                 .query((rs, n) -> {
                     var m = new LinkedHashMap<String, Object>();
-                    m.put("id", rs.getLong("id"));
-                    m.put("name", rs.getString("name"));
-                    m.put("year", rs.getObject("year"));
-                    m.put("role", rs.getString("role"));
-                    m.put("status", rs.getString("status"));
+                    m.put("id",             rs.getLong("id"));
+                    m.put("name",           rs.getString("name"));
+                    m.put("year",           rs.getObject("year"));
+                    m.put("role",           rs.getString("role"));
+                    m.put("status",         rs.getString("status"));
                     m.put("totalQuestions", rs.getInt("total_questions"));
-                    m.put("contestName", rs.getString("contest_name"));
+                    m.put("contestName",    rs.getString("contest_name"));
                     return (Map<String, Object>) m;
                 })
                 .optional()
@@ -439,13 +433,13 @@ public class ExamImportService {
                 .param("tid", templateId)
                 .query((rs, n) -> {
                     var m = new LinkedHashMap<String, Object>();
-                    m.put("id", rs.getLong("id"));
-                    m.put("number", rs.getInt("original_number"));
-                    m.put("statement", rs.getString("original_text"));
-                    m.put("answer", rs.getObject("original_answer"));
-                    m.put("topic", rs.getString("topic_suggested"));
+                    m.put("id",         rs.getLong("id"));
+                    m.put("number",     rs.getInt("original_number"));
+                    m.put("statement",  rs.getString("original_text"));
+                    m.put("answer",     rs.getObject("original_answer"));
+                    m.put("topic",      rs.getString("topic_suggested"));
                     m.put("discipline", rs.getString("discipline_suggested"));
-                    m.put("imported", rs.getBoolean("imported"));
+                    m.put("imported",   rs.getBoolean("imported"));
                     return (Map<String, Object>) m;
                 })
                 .list();
@@ -468,9 +462,9 @@ public class ExamImportService {
                 .param("tid", templateId)
                 .query((rs, n) -> {
                     var m = new HashMap<String, Object>();
-                    m.put("statement", rs.getString("original_text"));
-                    m.put("answer", rs.getObject("original_answer"));
-                    m.put("topic", rs.getString("topic_suggested"));
+                    m.put("statement",  rs.getString("original_text"));
+                    m.put("answer",     rs.getObject("original_answer"));
+                    m.put("topic",      rs.getString("topic_suggested"));
                     m.put("discipline", rs.getString("discipline_suggested"));
                     m.put("questionId", rs.getObject("question_id"));
                     return m;
@@ -496,18 +490,20 @@ public class ExamImportService {
                     "Especialista Cebraspe. Responda apenas JSON.");
 
             return Map.of(
-                    "mode", "ai_variant",
+                    "mode",       "ai_variant",
                     "templateId", templateId,
                     "aiResponse", response.resposta(),
-                    "message", "Variação gerada pela IA.");
+                    "message",    "Variação gerada pela IA."
+            );
         }
 
         return Map.of(
-                "mode", "exact",
-                "templateId", templateId,
+                "mode",          "exact",
+                "templateId",    templateId,
                 "questionCount", questions.size(),
-                "questions", questions,
-                "message", "Simulado baseado na prova original.");
+                "questions",     questions,
+                "message",       "Simulado baseado na prova original."
+        );
     }
 
     public Map<String, Object> importQuestionsFromTemplate(
@@ -523,9 +519,9 @@ public class ExamImportService {
                 .param("tid", templateId)
                 .query((rs, n) -> {
                     var m = new HashMap<String, Object>();
-                    m.put("id", rs.getLong("id"));
+                    m.put("id",        rs.getLong("id"));
                     m.put("statement", rs.getString("original_text"));
-                    m.put("answer", rs.getObject("original_answer"));
+                    m.put("answer",    rs.getObject("original_answer"));
                     return m;
                 })
                 .list();
@@ -539,8 +535,7 @@ public class ExamImportService {
         for (var row : rows) {
             try {
                 Boolean answer = parseBoolean(row.get("answer"));
-                if (answer == null)
-                    continue;
+                if (answer == null) continue;
 
                 var q = new Question(
                         null, topicId, null,
@@ -557,7 +552,7 @@ public class ExamImportService {
                         WHERE id = :id
                         """)
                         .param("qid", saved.id())
-                        .param("id", row.get("id"))
+                        .param("id",  row.get("id"))
                         .update();
                 imported++;
             } catch (Exception e) {
@@ -567,7 +562,8 @@ public class ExamImportService {
 
         return Map.of(
                 "imported", imported,
-                "total", rows.size(),
-                "message", imported + " questões importadas.");
+                "total",    rows.size(),
+                "message",  imported + " questões importadas."
+        );
     }
 }

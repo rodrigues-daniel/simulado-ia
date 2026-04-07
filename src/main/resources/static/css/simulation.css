@@ -238,3 +238,93 @@
     gap: 16px;
     max-width: 400px;
 }
+
+
+
+/* ── Cut Score Grid ─────────────────────────────── */
+.cut-score-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.cut-card {
+    border-radius: 10px;
+    padding: 16px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+}
+.cut-card.cut-approved { border-color: var(--success); background: #f0fdf4; }
+.cut-card.cut-rejected { border-color: var(--danger);  background: #fef2f2; }
+.cut-card.cut-na       { border-color: var(--border);  background: var(--surface2); }
+
+.cut-card-title  { font-size: 12px; font-weight: 700; text-transform: uppercase;
+                   color: var(--text-muted); margin-bottom: 8px; }
+.cut-card-status { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+.cut-card-detail { font-size: 13px; color: var(--text); margin-bottom: 3px; }
+.cut-card-need   { margin-top: 8px; font-size: 13px; color: var(--danger);
+                   font-weight: 600; }
+.cut-card-vac    { margin-top: 6px; font-size: 11px; color: var(--text-muted); }
+
+.cut-blank-tip {
+    padding: 12px 16px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--primary);
+}
+
+/* ── Scenarios Grid ─────────────────────────────── */
+.scenarios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.scenario-card {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 12px;
+    text-align: center;
+    background: var(--surface);
+}
+.scenario-card.scenario-current  { border-color: var(--primary-light);
+                                    background: #eff6ff; }
+.scenario-card.scenario-approved { border-color: var(--success);
+                                    background: #f0fdf4; }
+.scenario-card.scenario-default  { border-color: var(--border); }
+
+.scenario-label { font-size: 12px; font-weight: 700; color: var(--text);
+                  margin-bottom: 8px; }
+.scenario-score { font-size: 28px; font-weight: 900; color: var(--primary); }
+.scenario-score-label { font-size: 10px; color: var(--text-muted);
+                        text-transform: uppercase; margin-bottom: 8px; }
+.scenario-breakdown { display: flex; justify-content: center; gap: 8px;
+                      font-size: 12px; margin-bottom: 8px; }
+.scenario-status { margin-bottom: 8px; }
+.scenario-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+/* ── Strategies ─────────────────────────────────── */
+.strategy-item {
+    padding: 10px 14px;
+    border-left: 3px solid var(--primary-light);
+    background: var(--surface2);
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+
+/* ── Sim Contest Config ─────────────────────────── */
+.sim-contest-config h3 { color: var(--primary); }
+.sim-config-info {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #eff6ff;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--primary);
+}
