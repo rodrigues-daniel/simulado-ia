@@ -345,3 +345,134 @@ function hide(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
 }
+
+// ── Templates de provas ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    loadContestsIntoSelect('contestSelect');
+    loadExamTemplates();
+});
+
+async function loadExamTemplates() {
+    const sel = document.getElementById('examTemplateSelect');
+    if (!sel) return;
+    try {
+        const contestId = document.getElementById('contestSelect')?.value;
+        const url = contestId
+            ? `/simulations/exams/templates?contestId=${contestId}`
+            : '/simulations/exams/templates';
+        const templates = await API.get(url);
+
+        if (!templates.length) {
+            sel.innerHTML =
+                '<option value="">Nenhum template — faça upload de uma prova</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">Selecione um template...</option>' +
+            templates.map(t =>
+                `<option value="${t.id}"
+                         data-count="${t.totalQuestions}"
+                         data-status="${t.status}">
+                    ${t.name}
+                    ${t.year ? ` (${t.year})` : ''}
+                    — ${t.totalQuestions} questões
+                    ${t.status !== 'COMPLETED' ? ` [${t.status}]` : ''}
+                 </option>`
+            ).join('');
+    } catch (e) {
+        if (sel) sel.innerHTML =
+            '<option value="">Erro ao carregar templates</option>';
+    }
+}
+
+async function startFromTemplate(mode) {
+    const sel        = document.getElementById('examTemplateSelect');
+    const templateId = sel?.value;
+    if (!templateId) {
+        showToast('Selecione um template de prova', 'error'); return;
+    }
+    const contestId = document.getElementById('contestSelect')?.value;
+
+    try {
+        const result = await API.post(
+            `/simulations/exams/templates/${templateId}/simulate`,
+            { mode, contestId: contestId ? parseInt(contestId) : null }
+        );
+
+        if (mode === 'exact' && result.questions?.length) {
+            // Usa as questões do template diretamente
+            simulationId  = null;
+            simQuestions  = result.questions.map((q, i) => ({
+                id:        q.questionId || i,
+                statement: q.statement,
+                correctAnswer: q.answer,
+                source:    'PROVA-IMPORTADA',
+                trapKeywords: [],
+                difficulty: 'MEDIO',
+            }));
+            simCurrentIdx = 0;
+            simAnswers    = {};
+
+            hide('setupArea');
+            document.getElementById('simulationArea').style.display = 'block';
+            buildQuestionsNav();
+            renderSimQuestion(0);
+            startTimer(90 * 60); // 90 minutos padrão
+
+        } else if (mode === 'ai_variant') {
+            showToast('Variação IA gerada! Iniciando simulado...', 'success');
+            // Para variação IA, usa o sistema normal de simulado
+            await startSimulation();
+        }
+    } catch (e) {
+        showToast('Erro ao iniciar: ' + e.message, 'error');
+    }
+}
+
+async function uploadExamPdf() {
+    const file      = document.getElementById('examPdfFile')?.files[0];
+    const name      = document.getElementById('examName')?.value?.trim();
+    const year      = document.getElementById('examYear')?.value;
+    const contestId = document.getElementById('contestSelect')?.value;
+    const btn       = document.getElementById('btnUploadExam');
+    const resultEl  = document.getElementById('examUploadResult');
+
+    if (!file) { showToast('Selecione um arquivo PDF', 'error'); return; }
+    if (!name) { showToast('Informe o nome da prova', 'error');  return; }
+
+    btn.disabled    = true;
+    btn.textContent = '⏳ Enviando...';
+    resultEl.style.display  = 'block';
+    resultEl.className      = 'result-box';
+    resultEl.textContent    = '📤 Enviando PDF e processando com IA...';
+
+    try {
+        const form = new FormData();
+        form.append('file',      file);
+        form.append('name',      name);
+        if (year)      form.append('year',      year);
+        if (contestId) form.append('contestId', contestId);
+
+        const res = await fetch('/api/simulations/exams/upload', {
+            method: 'POST', body: form
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        resultEl.className = 'result-box success';
+        resultEl.innerHTML =
+            `✅ <strong>${data.name}</strong> recebida!<br>
+             <span style="font-size:12px;color:var(--text-muted)">
+             ${data.message} Template ID: ${data.templateId}
+             </span>`;
+
+        // Recarrega templates após upload
+        setTimeout(loadExamTemplates, 3000);
+
+    } catch (e) {
+        resultEl.className   = 'result-box error';
+        resultEl.textContent = `❌ Erro: ${e.message}`;
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '📤 Enviar e Processar com IA';
+    }
+}
